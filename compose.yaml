@@ -1,0 +1,40 @@
+# Ch00 開發環境（final）
+# - Laravel、Ollama：macOS 原生執行（本機 MySQL 5.7 不使用）
+# - MySQL、Qdrant：Docker
+# 變數讀取根目錄 .env；尚未建立 .env 時使用預設值，所以可以先單獨啟動 Qdrant
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-rag_poc}
+      MYSQL_USER: ${DB_USERNAME:-rag}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "33060:3306"   # 避開 Mac 本機可能已有的 3306；Laravel 連 127.0.0.1:33060
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${DB_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  qdrant:
+    # 建議固定版本；若此 tag 不存在，改成 v1.19 或到 Docker Hub qdrant/qdrant 查最新版
+    image: qdrant/qdrant:v1.19.0
+    environment:
+      QDRANT__TELEMETRY_DISABLED: "true"
+    ports:
+      - "6333:6333"   # REST + Web UI（/dashboard）
+      - "6334:6334"   # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  mysql_data:
+  qdrant_data:
