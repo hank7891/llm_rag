@@ -3,7 +3,7 @@
 namespace App\Ai\Chat\DTO;
 
 /**
- * 回答結束原因（內部格式）。各家原始值由 Provider 轉換，例如 Anthropic end_turn → Stop、max_tokens → Length。
+ * 回答結束原因（內部格式）。各家原始值由 Provider 轉換，例如 Ollama length、OpenAI incomplete、Gemini MAX_TOKENS → Length。
  */
 enum FinishReason: string
 {

@@ -163,6 +163,19 @@ class GeminiProviderTest extends TestCase
         $this->provider()->chat($this->messages(), new ChatOptions);
     }
 
+    public function test_gemini_key_echoed_by_upstream_is_redacted(): void
+    {
+        // 實測 Gemini 不會回傳 Key；此測試確保萬一回傳也會被遮蔽（縱深防禦）
+        Http::fake([self::URL => Http::response(['error' => ['message' => 'Bad key AIzaSyLEAKED_SECRET_abcdefghijklmnop']], 400)]);
+
+        try {
+            $this->provider()->chat($this->messages(), new ChatOptions);
+            $this->fail('Expected LlmClientException.');
+        } catch (LlmClientException $e) {
+            $this->assertStringNotContainsString('LEAKED_SECRET', $e->getMessage());
+        }
+    }
+
     // ---- 串流 ----
 
     /** @param list<array<string, mixed>> $events */

@@ -68,11 +68,15 @@ final class LlmHttp
 
     /**
      * 遮蔽上游錯誤訊息中的 API Key。實測 OpenAI 401 會把送出的 Key 原樣寫進錯誤訊息。
-     * sk- 開頭涵蓋 OpenAI（sk-proj-…）與 Anthropic（sk-ant-…）。
+     * 依各家 Key 格式判斷：OpenAI 為 sk-…，Gemini 為 AIza…。
      */
     public static function redact(string $text): string
     {
-        return preg_replace('/\bsk-[A-Za-z0-9_\-*]+/', 'sk-[REDACTED]', $text) ?? '[REDACTED]';
+        return preg_replace(
+            ['/\bsk-[A-Za-z0-9_\-*]+/', '/\bAIza[A-Za-z0-9_\-]{20,}/'],
+            ['sk-[REDACTED]', 'AIza[REDACTED]'],
+            $text,
+        ) ?? '[REDACTED]';
     }
 
     /** @param callable(): Response $send */
@@ -98,7 +102,7 @@ final class LlmHttp
         $status = $response->status();
         $json = $response->json();
 
-        // Ollama：{"error": "..."}；OpenAI / Anthropic：{"error": {"message": "..."}}
+        // Ollama：{"error": "..."}；OpenAI / Gemini：{"error": {"message": "..."}}
         $detail = match (true) {
             is_string($json['error'] ?? null) => $json['error'],
             is_string($json['error']['message'] ?? null) => $json['error']['message'],

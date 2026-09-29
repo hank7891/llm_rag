@@ -60,16 +60,4 @@ return [
         'stream_timeout' => 300,
     ],
 
-    // Anthropic 尚未實作（Ch02 改採 OpenAI），設定先保留
-    'anthropic' => [
-        'base_url' => 'https://api.anthropic.com',
-        'api_key' => env('ANTHROPIC_API_KEY'),
-        'model' => env('ANTHROPIC_MODEL'),
-        'default_max_tokens' => (int) env('ANTHROPIC_MAX_TOKENS', 1024),
-        'version' => env('ANTHROPIC_VERSION', '2023-06-01'),
-        'connect_timeout' => 5,
-        'timeout' => (int) env('ANTHROPIC_TIMEOUT', 60),
-        'stream_timeout' => 300,
-    ],
-
 ];

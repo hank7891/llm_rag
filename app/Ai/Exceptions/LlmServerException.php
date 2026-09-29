@@ -3,6 +3,6 @@
 namespace App\Ai\Exceptions;
 
 /**
- * 供應商回應 5xx（含 Anthropic 529 overloaded）。
+ * 供應商回應 5xx。
  */
 class LlmServerException extends LlmException {}

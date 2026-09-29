@@ -160,7 +160,7 @@ class ChatService
                 throw InvalidMessagesException::notMessage($key);
             }
 
-            // system 只能連續出現在開頭：部分供應商（如 Anthropic）只有頂層 system 參數，無法表達「從中段才生效」
+            // system 只能連續出現在開頭：部分供應商（如 OpenAI instructions、Gemini systemInstruction）只有頂層 system 參數，無法表達「從中段才生效」
             if ($message->role !== Role::System) {
                 $conversationStarted = true;
             } elseif ($conversationStarted) {
