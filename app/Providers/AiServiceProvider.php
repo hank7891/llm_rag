@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Ai\Chat\ChatService;
+use App\Ai\Chat\Providers\OllamaProvider;
+use App\Ai\Chat\Providers\OpenAIProvider;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -16,6 +18,10 @@ class AiServiceProvider extends ServiceProvider
             $app,
             $app['config']->get('llm.chat.providers', []),
             $app['config']->get('llm.chat.default'),
+            $app['log'],
         ));
+
+        $this->app->bind(OllamaProvider::class, fn ($app) => new OllamaProvider($app['config']->get('llm.ollama')));
+        $this->app->bind(OpenAIProvider::class, fn ($app) => new OpenAIProvider($app['config']->get('llm.openai')));
     }
 }

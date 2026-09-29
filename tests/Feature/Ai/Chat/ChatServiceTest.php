@@ -4,13 +4,17 @@ namespace Tests\Feature\Ai\Chat;
 
 use App\Ai\Chat\ChatService;
 use App\Ai\Chat\DTO\ChatOptions;
+use App\Ai\Chat\DTO\ChatResult;
 use App\Ai\Chat\DTO\Message;
 use App\Ai\Chat\DTO\Role;
 use App\Ai\Chat\DTO\StreamChunk;
 use App\Ai\Chat\Exceptions\InvalidMessagesException;
 use App\Ai\Chat\Exceptions\UnknownChatProviderException;
 use App\Ai\Chat\Providers\FakeChatProvider;
+use App\Ai\Exceptions\LlmTimeoutException;
+use Illuminate\Support\Facades\Log;
 use LogicException;
+use Mockery;
 use stdClass;
 use Tests\Support\AltFakeChatProvider;
 use Tests\TestCase;
@@ -99,7 +103,7 @@ class ChatServiceTest extends TestCase
     public function test_unknown_provider_lists_name_and_available_providers(): void
     {
         $this->expectException(UnknownChatProviderException::class);
-        $this->expectExceptionMessage('Unknown chat provider [nope]. Available: fake.');
+        $this->expectExceptionMessageMatches('/Unknown chat provider \[nope\]\. Available: .*\bfake\b/');
 
         $this->service()->chat($this->threeTurns(), provider: 'nope');
     }
@@ -127,6 +131,30 @@ class ChatServiceTest extends TestCase
         $this->expectExceptionMessage('Messages[0] is not an instance of Message');
 
         $this->service()->chat([['role' => 'user', 'content' => '你好']]);
+    }
+
+    public function test_leading_system_messages_are_accepted(): void
+    {
+        $messages = [
+            new Message(Role::System, '請使用繁體中文回答'),
+            new Message(Role::System, '回答請簡短'),
+            ...$this->threeTurns(),
+        ];
+
+        $this->service()->chat($messages);
+
+        $this->assertSame($messages, $this->fake->lastMessages);
+    }
+
+    public function test_system_message_after_conversation_started_is_rejected(): void
+    {
+        $messages = $this->threeTurns();
+        array_splice($messages, 2, 0, [new Message(Role::System, '從這裡開始改用英文')]);
+
+        $this->expectException(InvalidMessagesException::class);
+        $this->expectExceptionMessage('Messages[2] is a system message after the conversation started');
+
+        $this->service()->chat($messages);
     }
 
     public function test_last_message_not_from_user_is_rejected(): void
@@ -162,6 +190,46 @@ class ChatServiceTest extends TestCase
             array_merge(array_fill(0, count($chunks) - 1, false), [true]),
             array_map(fn (StreamChunk $chunk) => $chunk->usage !== null, $chunks),
         );
+    }
+
+    public function test_chat_logs_usage(): void
+    {
+        Log::spy();
+
+        $this->service()->chat($this->threeTurns());
+
+        Log::shouldHaveReceived('info')->once()->with('llm.chat', Mockery::on(fn (array $context) => array_intersect_key($context, array_flip([
+            'provider', 'model', 'input_tokens', 'output_tokens', 'finish_reason', 'stream',
+        ])) === ['provider' => 'fake', 'model' => 'fake', 'input_tokens' => 10, 'output_tokens' => 20, 'finish_reason' => 'stop', 'stream' => false]
+            && is_int($context['duration_ms'])));
+    }
+
+    public function test_stream_logs_usage_after_last_chunk(): void
+    {
+        Log::spy();
+
+        iterator_to_array($this->service()->stream($this->threeTurns()), false);
+
+        Log::shouldHaveReceived('info')->once()->with('llm.chat', Mockery::on(fn (array $context) => $context['stream'] === true && $context['output_tokens'] === 20));
+    }
+
+    public function test_failed_call_is_logged(): void
+    {
+        Log::spy();
+        $this->app->instance(FakeChatProvider::class, new class extends FakeChatProvider
+        {
+            public function chat(array $messages, ChatOptions $options): ChatResult
+            {
+                throw new LlmTimeoutException('[fake] Request timed out.');
+            }
+        });
+
+        try {
+            $this->service()->chat($this->threeTurns());
+        } catch (LlmTimeoutException) {
+        }
+
+        Log::shouldHaveReceived('warning')->once()->with('llm.chat.failed', Mockery::on(fn (array $context) => $context['error'] === 'LlmTimeoutException'));
     }
 
     public function test_stream_validates_before_iteration(): void

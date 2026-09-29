@@ -4,6 +4,7 @@ namespace Tests\Unit\Ai\Chat;
 
 use App\Ai\Chat\DTO\ChatOptions;
 use App\Ai\Chat\DTO\ChatResult;
+use App\Ai\Chat\DTO\FinishReason;
 use App\Ai\Chat\DTO\Message;
 use App\Ai\Chat\DTO\Role;
 use App\Ai\Chat\DTO\StreamChunk;
@@ -69,15 +70,23 @@ class DtoTest extends TestCase
 
     public function test_chat_result_holds_usage(): void
     {
-        $result = new ChatResult('答案', new Usage(inputTokens: 3, outputTokens: 5), 'qwen3:8b', 'stop');
+        $result = new ChatResult('答案', new Usage(inputTokens: 3, outputTokens: 5), 'qwen3:8b', FinishReason::Stop);
 
         $this->assertSame([3, 5], [$result->usage->inputTokens, $result->usage->outputTokens]);
     }
 
-    public function test_stream_chunk_defaults_usage_and_finish_reason_to_null(): void
+    public function test_stream_chunk_defaults_final_fields_to_null(): void
     {
         $chunk = new StreamChunk('片段');
 
-        $this->assertSame([null, null], [$chunk->usage, $chunk->finishReason]);
+        $this->assertSame([null, null, null], [$chunk->usage, $chunk->finishReason, $chunk->model]);
+    }
+
+    public function test_finish_reason_converts_to_string(): void
+    {
+        $this->assertSame(
+            ['stop', 'length', 'content_filter', 'other'],
+            array_map(fn (FinishReason $reason) => $reason->value, FinishReason::cases()),
+        );
     }
 }

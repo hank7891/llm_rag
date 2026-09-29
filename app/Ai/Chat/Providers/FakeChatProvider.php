@@ -5,6 +5,7 @@ namespace App\Ai\Chat\Providers;
 use App\Ai\Chat\Contracts\ChatProviderInterface;
 use App\Ai\Chat\DTO\ChatOptions;
 use App\Ai\Chat\DTO\ChatResult;
+use App\Ai\Chat\DTO\FinishReason;
 use App\Ai\Chat\DTO\Message;
 use App\Ai\Chat\DTO\Role;
 use App\Ai\Chat\DTO\StreamChunk;
@@ -34,7 +35,7 @@ class FakeChatProvider implements ChatProviderInterface
             content: $this->reply($messages),
             usage: $this->usage(),
             model: $options->model ?? 'fake',
-            finishReason: 'stop',
+            finishReason: FinishReason::Stop,
         );
     }
 
@@ -49,7 +50,7 @@ class FakeChatProvider implements ChatProviderInterface
 
         foreach ($pieces as $index => $piece) {
             yield $index === $lastIndex
-                ? new StreamChunk($piece, $this->usage(), 'stop')
+                ? new StreamChunk($piece, $this->usage(), FinishReason::Stop, $options->model ?? 'fake')
                 : new StreamChunk($piece);
         }
     }
