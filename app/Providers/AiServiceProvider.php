@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Ai\Chat\ChatService;
+use App\Ai\Chat\Providers\GeminiProvider;
 use App\Ai\Chat\Providers\OllamaProvider;
 use App\Ai\Chat\Providers\OpenAIProvider;
 use Illuminate\Support\ServiceProvider;
@@ -23,5 +24,6 @@ class AiServiceProvider extends ServiceProvider
 
         $this->app->bind(OllamaProvider::class, fn ($app) => new OllamaProvider($app['config']->get('llm.ollama')));
         $this->app->bind(OpenAIProvider::class, fn ($app) => new OpenAIProvider($app['config']->get('llm.openai')));
+        $this->app->bind(GeminiProvider::class, fn ($app) => new GeminiProvider($app['config']->get('llm.gemini')));
     }
 }

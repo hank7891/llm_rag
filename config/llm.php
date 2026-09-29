@@ -1,6 +1,7 @@
 <?php
 
 use App\Ai\Chat\Providers\FakeChatProvider;
+use App\Ai\Chat\Providers\GeminiProvider;
 use App\Ai\Chat\Providers\OllamaProvider;
 use App\Ai\Chat\Providers\OpenAIProvider;
 
@@ -18,6 +19,7 @@ return [
         'providers' => [
             'ollama' => OllamaProvider::class,
             'openai' => OpenAIProvider::class,
+            'gemini' => GeminiProvider::class,
             'fake' => FakeChatProvider::class,
         ],
 
@@ -45,6 +47,16 @@ return [
         'default_max_tokens' => (int) env('OPENAI_MAX_TOKENS', 1024),
         'connect_timeout' => 5,
         'timeout' => (int) env('OPENAI_TIMEOUT', 60),
+        'stream_timeout' => 300,
+    ],
+
+    'gemini' => [
+        'base_url' => 'https://generativelanguage.googleapis.com/v1beta/models',
+        'api_key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL'),
+        'default_max_tokens' => (int) env('GEMINI_MAX_TOKENS', 1024),
+        'connect_timeout' => 5,
+        'timeout' => (int) env('GEMINI_TIMEOUT', 60),
         'stream_timeout' => 300,
     ],
 

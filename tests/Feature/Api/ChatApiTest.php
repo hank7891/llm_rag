@@ -111,7 +111,7 @@ class ChatApiTest extends TestCase
             'missing messages' => [[], 'messages'],
             'unknown role' => [['messages' => [['role' => 'model', 'content' => 'hi']]], 'messages.0.role'],
             'missing content' => [['messages' => [['role' => 'user']]], 'messages.0.content'],
-            'unknown provider' => [['provider' => 'gemini', 'messages' => [['role' => 'user', 'content' => 'hi']]], 'provider'],
+            'unknown provider' => [['provider' => 'nope', 'messages' => [['role' => 'user', 'content' => 'hi']]], 'provider'],
             'temperature out of range' => [['messages' => [['role' => 'user', 'content' => 'hi']], 'options' => ['temperature' => 5]], 'options.temperature'],
         ];
     }
