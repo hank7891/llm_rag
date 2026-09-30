@@ -1,0 +1,60 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Documents\DocumentService;
+use App\Documents\DocumentStatus;
+use App\Documents\Exceptions\InvalidStatusTransitionException;
+use App\Documents\Exceptions\StaleDocumentStatusException;
+use App\Http\Requests\UploadDocumentRequest;
+use App\Models\Document;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\View\View;
+
+class DocumentController extends Controller
+{
+    public function __construct(private readonly DocumentService $documents) {}
+
+    public function index(): View
+    {
+        [$documents, $duplicates] = $this->documents->paginateWithDuplicates();
+
+        return view('documents.index', [
+            'documents' => $documents,
+            'duplicates' => $duplicates,
+            // 有文件還在處理時，列表頁每幾秒自動重新整理，方便觀察狀態變化
+            'autoRefresh' => $documents->getCollection()->contains(
+                fn (Document $d) => in_array($d->status_key, [DocumentStatus::Uploaded, DocumentStatus::Parsing], true),
+            ),
+        ]);
+    }
+
+    public function create(): View
+    {
+        return view('documents.upload', ['maxKb' => config('documents.max_upload_kb')]);
+    }
+
+    public function store(UploadDocumentRequest $request): RedirectResponse
+    {
+        $document = $this->documents->upload($request->file('file'));
+
+        return redirect()->route('documents.index')
+            ->with('success', "已上傳「{$document->name}」，正在背景解析。");
+    }
+
+    public function show(Document $document): View
+    {
+        return view('documents.show', ['document' => $document, 'pages' => $document->pages]);
+    }
+
+    public function reprocess(Document $document): RedirectResponse
+    {
+        try {
+            $this->documents->reprocess($document);
+        } catch (InvalidStatusTransitionException|StaleDocumentStatusException) {
+            return back()->with('error', "「{$document->name}」目前的狀態無法重新處理，請重新整理頁面後再試。");
+        }
+
+        return back()->with('success', "已重新排入處理：「{$document->name}」。");
+    }
+}
