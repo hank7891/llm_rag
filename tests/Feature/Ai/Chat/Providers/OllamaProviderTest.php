@@ -35,6 +35,7 @@ class OllamaProviderTest extends TestCase
             'model' => 'qwen3:8b',
             'num_ctx' => 8192,
             'think' => false,
+            'truncate' => true,
             'connect_timeout' => 5,
             'timeout' => 120,
             'stream_timeout' => 300,
@@ -133,6 +134,99 @@ class OllamaProviderTest extends TestCase
 
         Http::assertSent(fn (Request $request) => [$request['model'], $request['options']]
             === ['llama3', ['num_ctx' => 8192, 'temperature' => 0.2, 'num_predict' => 100]]);
+    }
+
+    public function test_num_ctx_can_be_overridden_per_request(): void
+    {
+        Http::fake([self::URL => Http::response($this->chatResponse())]);
+
+        $this->provider()->chat($this->messages(), new ChatOptions(providerOptions: ['ollama' => ['num_ctx' => 4096]]));
+
+        Http::assertSent(fn (Request $request) => $request['options']['num_ctx'] === 4096);
+    }
+
+    public function test_options_for_other_providers_are_ignored(): void
+    {
+        Http::fake([self::URL => Http::response($this->chatResponse())]);
+
+        $this->provider()->chat($this->messages(), new ChatOptions(providerOptions: ['openai' => ['num_ctx' => 1]]));
+
+        Http::assertSent(fn (Request $request) => $request['options']['num_ctx'] === 8192);
+    }
+
+    public function test_truncate_defaults_to_config_and_can_be_disabled_per_request(): void
+    {
+        Http::fake([self::URL => Http::response($this->chatResponse())]);
+
+        $this->provider()->chat($this->messages(), new ChatOptions);
+        $this->provider()->chat($this->messages(), new ChatOptions(providerOptions: ['ollama' => ['truncate' => false]]));
+
+        $this->assertSame([true, false], Http::recorded()->map(fn ($pair) => $pair[0]['truncate'])->all());
+    }
+
+    // ---- 截斷判斷（實測：超過 num_ctx 時只保留約一半，從前面砍） ----
+
+    /** 約 12000 個 Token 的長文件（16000 個中文字） */
+    private function longDocument(): array
+    {
+        return [new Message(Role::User, str_repeat('長', 16000))];
+    }
+
+    public function test_input_truncated_when_estimate_exceeds_num_ctx_and_ollama_processed_far_less(): void
+    {
+        Http::fake([self::URL => Http::response($this->chatResponse(['prompt_eval_count' => 2050]))]);
+
+        $result = $this->provider()->chat($this->longDocument(), new ChatOptions(providerOptions: ['ollama' => ['num_ctx' => 4096]]));
+
+        $this->assertTrue($result->inputTruncated);
+    }
+
+    public function test_input_not_truncated_when_it_fits(): void
+    {
+        Http::fake([self::URL => Http::response($this->chatResponse(['prompt_eval_count' => 12459]))]);
+
+        $result = $this->provider()->chat($this->longDocument(), new ChatOptions(providerOptions: ['ollama' => ['num_ctx' => 32768]]));
+
+        $this->assertFalse($result->inputTruncated);
+    }
+
+    public function test_short_input_is_never_reported_as_truncated(): void
+    {
+        // 短文件的 prompt_eval_count 本來就遠小於 num_ctx，不可誤判
+        Http::fake([self::URL => Http::response($this->chatResponse(['prompt_eval_count' => 40]))]);
+
+        $this->assertFalse($this->provider()->chat($this->messages(), new ChatOptions)->inputTruncated);
+    }
+
+    public function test_input_not_truncated_when_truncate_is_disabled(): void
+    {
+        Http::fake([self::URL => Http::response($this->chatResponse(['prompt_eval_count' => 2050]))]);
+
+        $result = $this->provider()->chat($this->longDocument(), new ChatOptions(providerOptions: ['ollama' => ['num_ctx' => 4096, 'truncate' => false]]));
+
+        $this->assertFalse($result->inputTruncated);
+    }
+
+    public function test_context_overflow_with_truncate_disabled_becomes_client_exception(): void
+    {
+        // 實測：truncate=false 且超過 num_ctx 時回 HTTP 400，訊息附精確 Token 數
+        Http::fake([self::URL => Http::response(['error' => 'request (12459 tokens) exceeds the available context size (4096 tokens), try increasing it'], 400)]);
+
+        $this->expectException(LlmClientException::class);
+        $this->expectExceptionMessage('request (12459 tokens) exceeds the available context size (4096 tokens)');
+
+        $this->provider()->chat($this->longDocument(), new ChatOptions(providerOptions: ['ollama' => ['truncate' => false]]));
+    }
+
+    public function test_stream_last_chunk_reports_truncation(): void
+    {
+        $events = $this->streamEvents();
+        $events[3]['prompt_eval_count'] = 2050;
+        Http::fake([self::URL => Http::response($this->ndjson($events))]);
+
+        $chunks = iterator_to_array($this->provider()->stream($this->longDocument(), new ChatOptions(providerOptions: ['ollama' => ['num_ctx' => 4096]])), false);
+
+        $this->assertTrue(end($chunks)->inputTruncated);
     }
 
     // ---- 回應轉換 ----

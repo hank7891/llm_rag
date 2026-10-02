@@ -5,6 +5,7 @@
 | 檔案 | 用途 | 產生方式 |
 | --- | --- | --- |
 | `handbook.pdf` | 3 頁中文文字型 PDF（CID 字型），每頁有頁首「公司機密」與頁尾頁碼，含全形英數字、硬換行、英文段落 | 見下方 |
+| `long-handbook.pdf` | 13 頁長文件（約 1.7 萬字、qwen3 約 1.25 萬 Token），開頭／中段／結尾各埋一個事實（375 元、4,260 元、115 年 3 月 18 日），中段埋一句 Prompt Injection；Ch04 實驗用 | 以固定亂數種子產生 `source/long-handbook.html`，再用 Chrome 印成 PDF |
 | `scanned.pdf` | 掃描型 PDF（只有圖片、沒有文字層） | `handbook.pdf` 第 1 頁轉成圖片再包成 PDF |
 | `notice-utf8.txt` | UTF-8 純文字 | 手寫 |
 | `notice-utf8-bom.txt` | UTF-8 BOM | `notice-utf8.txt` 前面加上 `EF BB BF` |

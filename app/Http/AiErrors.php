@@ -10,6 +10,7 @@ use App\Ai\Exceptions\LlmRateLimitException;
 use App\Ai\Exceptions\LlmResponseFormatException;
 use App\Ai\Exceptions\LlmServerException;
 use App\Ai\Exceptions\LlmTimeoutException;
+use App\Documents\Exceptions\DocumentNotReadyException;
 use Illuminate\Http\JsonResponse;
 use Throwable;
 
@@ -23,6 +24,7 @@ final class AiErrors
     private const MAP = [
         InvalidMessagesException::class => [422, 'invalid_messages'],
         UnknownChatProviderException::class => [422, 'unknown_provider'],
+        DocumentNotReadyException::class => [409, 'document_not_ready'],
         LlmRateLimitException::class => [429, 'rate_limited'],
         LlmConnectionException::class => [503, 'provider_unavailable'],
         LlmTimeoutException::class => [504, 'provider_timeout'],

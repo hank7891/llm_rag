@@ -20,4 +20,9 @@ return [
     // 平均每頁可見字元數低於此值時，視為掃描型 PDF（沒有文字層）
     'scanned_min_chars_per_page' => 20,
 
+    'qa' => [
+        // System Prompt 獨立成檔案，修改規則不用改程式
+        'system_prompt' => resource_path('prompts/document-qa.md'),
+    ],
+
 ];

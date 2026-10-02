@@ -5,9 +5,11 @@ namespace Tests\Feature\Ai\Chat;
 use App\Ai\Chat\ChatService;
 use App\Ai\Chat\DTO\ChatOptions;
 use App\Ai\Chat\DTO\ChatResult;
+use App\Ai\Chat\DTO\FinishReason;
 use App\Ai\Chat\DTO\Message;
 use App\Ai\Chat\DTO\Role;
 use App\Ai\Chat\DTO\StreamChunk;
+use App\Ai\Chat\DTO\Usage;
 use App\Ai\Chat\Exceptions\InvalidMessagesException;
 use App\Ai\Chat\Exceptions\UnknownChatProviderException;
 use App\Ai\Chat\Providers\FakeChatProvider;
@@ -211,6 +213,22 @@ class ChatServiceTest extends TestCase
         iterator_to_array($this->service()->stream($this->threeTurns()), false);
 
         Log::shouldHaveReceived('info')->once()->with('llm.chat', Mockery::on(fn (array $context) => $context['stream'] === true && $context['output_tokens'] === 20));
+    }
+
+    public function test_truncated_input_is_logged_as_warning(): void
+    {
+        Log::spy();
+        $this->app->instance(FakeChatProvider::class, new class extends FakeChatProvider
+        {
+            public function chat(array $messages, ChatOptions $options): ChatResult
+            {
+                return new ChatResult('答案', new Usage(2050, 10), 'qwen3:8b', FinishReason::Stop, inputTruncated: true);
+            }
+        });
+
+        $this->service()->chat($this->threeTurns());
+
+        Log::shouldHaveReceived('warning')->once()->with('llm.chat.input_truncated', Mockery::on(fn (array $context) => $context['input_tokens'] === 2050));
     }
 
     public function test_failed_call_is_logged(): void

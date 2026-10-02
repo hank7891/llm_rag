@@ -2,11 +2,14 @@
 
 namespace App\Providers;
 
+use App\Ai\Chat\ChatService;
 use App\Documents\DocumentParsingService;
 use App\Documents\DocumentService;
 use App\Documents\Parsing\ParserResolver;
 use App\Documents\Parsing\PdfParser;
 use App\Documents\Parsing\TextNormalizer;
+use App\Documents\Qa\DocumentContextBuilder;
+use App\Documents\Qa\DocumentQaService;
 use App\Repositories\DocumentPageRepository;
 use App\Repositories\DocumentRepository;
 use Illuminate\Support\ServiceProvider;
@@ -27,6 +30,12 @@ class DocumentServiceProvider extends ServiceProvider
             $app->make(DocumentRepository::class),
             $app['filesystem']->disk($app['config']->get('documents.disk')),
             $app['config']->get('documents.directory'),
+        ));
+
+        $this->app->bind(DocumentQaService::class, fn ($app) => new DocumentQaService(
+            $app->make(ChatService::class),
+            $app->make(DocumentContextBuilder::class),
+            file_get_contents($app['config']->get('documents.qa.system_prompt')),
         ));
 
         $this->app->bind(DocumentParsingService::class, fn ($app) => new DocumentParsingService(

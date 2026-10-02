@@ -35,6 +35,8 @@ return [
         'model' => env('OLLAMA_CHAT_MODEL'),
         'num_ctx' => (int) env('OLLAMA_NUM_CTX', 8192),
         'think' => (bool) env('OLLAMA_THINK', false),
+        // true（Ollama 預設）：超過 num_ctx 時靜默截斷，從前面砍掉內容；false：直接回錯誤
+        'truncate' => (bool) env('OLLAMA_TRUNCATE', true),
         'connect_timeout' => 5,
         'timeout' => (int) env('OLLAMA_TIMEOUT', 120),
         'stream_timeout' => 300,

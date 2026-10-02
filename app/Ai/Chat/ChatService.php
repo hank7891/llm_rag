@@ -51,7 +51,7 @@ class ChatService
             throw $e;
         }
 
-        $this->logUsage($name, $startedAt, $result->model, $result->usage, $result->finishReason, stream: false);
+        $this->logUsage($name, $startedAt, $result->model, $result->usage, $result->finishReason, $result->inputTruncated, stream: false);
 
         return $result;
     }
@@ -87,7 +87,7 @@ class ChatService
                 yield $chunk;
 
                 if ($chunk->usage !== null) {
-                    $this->logUsage($name, $startedAt, $chunk->model, $chunk->usage, $chunk->finishReason, stream: true);
+                    $this->logUsage($name, $startedAt, $chunk->model, $chunk->usage, $chunk->finishReason, $chunk->inputTruncated, stream: true);
                 }
             }
         } catch (Throwable $e) {
@@ -97,17 +97,25 @@ class ChatService
         }
     }
 
-    private function logUsage(string $name, int $startedAt, ?string $model, Usage $usage, ?FinishReason $finishReason, bool $stream): void
+    private function logUsage(string $name, int $startedAt, ?string $model, Usage $usage, ?FinishReason $finishReason, ?bool $inputTruncated, bool $stream): void
     {
-        $this->logger->info('llm.chat', [
+        $context = [
             'provider' => $name,
             'model' => $model,
             'input_tokens' => $usage->inputTokens,
             'output_tokens' => $usage->outputTokens,
             'finish_reason' => $finishReason?->value,
+            'input_truncated' => $inputTruncated,
             'duration_ms' => $this->elapsedMs($startedAt),
             'stream' => $stream,
-        ]);
+        ];
+
+        $this->logger->info('llm.chat', $context);
+
+        // 靜默截斷不會報錯，回答看起來像「模型沒讀到文件」，所以另外記一筆警告方便追查
+        if ($inputTruncated === true) {
+            $this->logger->warning('llm.chat.input_truncated', $context);
+        }
     }
 
     private function logFailure(string $name, int $startedAt, Throwable $e, bool $stream): void

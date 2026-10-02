@@ -13,6 +13,7 @@ use App\Ai\Exceptions\LlmResponseFormatException;
 use App\Ai\Exceptions\LlmServerException;
 use App\Ai\Support\JsonField;
 use App\Ai\Support\LlmHttp;
+use App\Ai\Support\TokenEstimator;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use LogicException;
@@ -26,7 +27,7 @@ class OllamaProvider implements ChatProviderInterface
     private const NAME = 'ollama';
 
     /**
-     * @param  array{base_url: string, model: ?string, num_ctx: int, think: bool, connect_timeout: int, timeout: int, stream_timeout: int}  $config
+     * @param  array{base_url: string, model: ?string, num_ctx: int, think: bool, truncate: bool, connect_timeout: int, timeout: int, stream_timeout: int}  $config
      */
     public function __construct(private readonly array $config) {}
 
@@ -38,11 +39,14 @@ class OllamaProvider implements ChatProviderInterface
         $content = JsonField::string(self::NAME, $json, 'message.content');
         $this->assertAnswered($content !== '', $finishReason);
 
+        $usage = $this->usage($json);
+
         return new ChatResult(
             content: $content,
-            usage: $this->usage($json),
+            usage: $usage,
             model: is_string($json['model'] ?? null) ? $json['model'] : $this->model($options),
             finishReason: $finishReason,
+            inputTruncated: $this->inputTruncated($messages, $options, $usage),
         );
     }
 
@@ -77,11 +81,14 @@ class OllamaProvider implements ChatProviderInterface
                 $finishReason = $this->finishReason($event);
                 $this->assertAnswered($answered, $finishReason);
 
+                $usage = $this->usage($event);
+
                 yield new StreamChunk(
                     delta: $delta,
-                    usage: $this->usage($event),
+                    usage: $usage,
                     finishReason: $finishReason,
                     model: is_string($event['model'] ?? null) ? $event['model'] : $this->model($options),
+                    inputTruncated: $this->inputTruncated($messages, $options, $usage),
                 );
 
                 return;
@@ -113,8 +120,11 @@ class OllamaProvider implements ChatProviderInterface
             'messages' => array_map(fn (Message $m) => ['role' => $m->role->value, 'content' => $m->content], $messages),
             'stream' => $stream,
             'think' => $this->config['think'],
+            // false：超過 num_ctx 時回 HTTP 400（附精確 Token 數），而不是靜默截斷
+            'truncate' => $this->truncate($options),
             'options' => array_filter([
-                'num_ctx' => $this->config['num_ctx'],
+                // 一律明確帶入：Ollama 預設的 num_ctx 遠小於模型上限，超過時會靜默截斷
+                'num_ctx' => $this->numCtx($options),
                 'temperature' => $options->temperature,
                 'num_predict' => $options->maxTokens,
             ], fn ($value) => $value !== null),
@@ -125,6 +135,34 @@ class OllamaProvider implements ChatProviderInterface
     {
         return $options->model ?? $this->config['model']
             ?? throw new LogicException('[ollama] No model configured (OLLAMA_CHAT_MODEL).');
+    }
+
+    private function numCtx(ChatOptions $options): int
+    {
+        return (int) ($options->forProvider(self::NAME)['num_ctx'] ?? $this->config['num_ctx']);
+    }
+
+    private function truncate(ChatOptions $options): bool
+    {
+        return (bool) ($options->forProvider(self::NAME)['truncate'] ?? $this->config['truncate']);
+    }
+
+    /**
+     * 判斷輸入是否被靜默截斷。實測（Ch04）：輸入超過 num_ctx 時，Ollama 從前面砍掉內容，
+     * 只保留約 num_ctx 的一半，所以 prompt_eval_count 不會「接近 num_ctx」，單看它無法判斷。
+     * 改以兩個條件同時成立判斷：粗估 Token 數超過 num_ctx，且實際處理的 Token 數明顯少於粗估值。
+     *
+     * @param  list<Message>  $messages
+     */
+    private function inputTruncated(array $messages, ChatOptions $options, Usage $usage): bool
+    {
+        if (! $this->truncate($options)) {
+            return false; // truncate=false 時超過上限會直接報錯，不可能被截斷
+        }
+
+        $estimated = array_sum(array_map(fn (Message $m) => TokenEstimator::estimate($m->content), $messages));
+
+        return $estimated > $this->numCtx($options) && $usage->inputTokens < $estimated * 0.8;
     }
 
     private function usage(array $json): Usage

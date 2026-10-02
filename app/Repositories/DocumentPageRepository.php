@@ -4,10 +4,17 @@ namespace App\Repositories;
 
 use App\Models\Document;
 use App\Models\DocumentPage;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 class DocumentPageRepository
 {
+    /** @return Collection<int, DocumentPage> 依頁碼排序 */
+    public function forDocument(int $documentId): Collection
+    {
+        return DocumentPage::where('document_id', $documentId)->orderBy('page_number')->get();
+    }
+
     /**
      * 以新頁面整批取代舊頁面。刪除與寫入在同一個 Transaction：Job 重跑不會產生重複頁面（冪等），
      * 中途失敗也不會留下「舊頁面已刪、新頁面只寫一半」的狀態。
