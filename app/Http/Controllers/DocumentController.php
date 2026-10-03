@@ -9,6 +9,7 @@ use App\Documents\Exceptions\StaleDocumentStatusException;
 use App\Http\Requests\UploadDocumentRequest;
 use App\Models\Document;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DocumentController extends Controller
@@ -24,7 +25,7 @@ class DocumentController extends Controller
             'duplicates' => $duplicates,
             // 有文件還在處理時，列表頁每幾秒自動重新整理，方便觀察狀態變化
             'autoRefresh' => $documents->getCollection()->contains(
-                fn (Document $d) => in_array($d->status_key, [DocumentStatus::Uploaded, DocumentStatus::Parsing], true),
+                fn (Document $d) => in_array($d->status_key, [DocumentStatus::Uploaded, DocumentStatus::Parsing, DocumentStatus::Chunking], true),
             ),
         ]);
     }
@@ -42,9 +43,18 @@ class DocumentController extends Controller
             ->with('success', "已上傳「{$document->name}」，正在背景解析。");
     }
 
-    public function show(Document $document): View
+    public function show(Document $document, Request $request): View
     {
-        return view('documents.show', ['document' => $document, 'pages' => $document->pages]);
+        $tab = $request->query('tab') === 'chunks' ? 'chunks' : 'pages';
+
+        return view('documents.show', [
+            'document' => $document,
+            'tab' => $tab,
+            'pages' => $tab === 'pages' ? $document->pages : collect(),
+            'chunks' => $tab === 'chunks' ? $document->chunks : collect(),
+            'chunkCount' => $document->chunks()->count(),
+            'maxTokens' => config('rag.chunking.max_tokens'),
+        ]);
     }
 
     public function reprocess(Document $document): RedirectResponse

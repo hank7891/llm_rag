@@ -7,6 +7,7 @@ use App\Documents\Parsing\Exceptions\DocumentParseException;
 use App\Documents\Parsing\ParsedPage;
 use App\Documents\Parsing\ParserResolver;
 use App\Documents\Parsing\TextNormalizer;
+use App\Jobs\ChunkDocumentJob;
 use App\Repositories\DocumentPageRepository;
 use App\Repositories\DocumentRepository;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -64,6 +65,9 @@ class DocumentParsingService
             array_map(fn (ParsedPage $p) => $p->content, $pages),
         ));
         $this->documents->transition($document, DocumentStatus::Parsed, ['page_count' => count($pages)]);
+
+        // 解析完成後接著切段（Ch05），在另一個 Job 執行：切段失敗不影響已保存的頁面，也可以單獨重跑
+        ChunkDocumentJob::dispatch($document->id);
     }
 
     /** 標記為失敗並記錄原因（由 Job 在永久性錯誤或重試用盡時呼叫） */

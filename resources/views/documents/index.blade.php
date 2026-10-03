@@ -53,7 +53,7 @@
                             <td class="px-4 py-3 text-right whitespace-nowrap tabular-nums text-slate-500">{{ Illuminate\Support\Number::fileSize($document->size) }}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-slate-500">{{ $document->created_at->format('Y-m-d H:i') }}</td>
                             <td class="px-4 py-3 text-right whitespace-nowrap">
-                                @if ($document->status_key === App\Documents\DocumentStatus::Parsed)
+                                @if ($document->status_key->hasPages())
                                     <a href="{{ route('documents.show', $document) }}" class="text-indigo-600 hover:underline">逐頁檢視</a>
                                 @endif
                                 @if ($document->status_key->canReprocess())

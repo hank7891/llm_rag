@@ -34,4 +34,9 @@ class Document extends Model
     {
         return $this->hasMany(DocumentPage::class)->orderBy('page_number');
     }
+
+    public function chunks(): HasMany
+    {
+        return $this->hasMany(DocumentChunk::class)->orderBy('chunk_index');
+    }
 }

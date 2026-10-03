@@ -3,6 +3,10 @@
 namespace App\Providers;
 
 use App\Ai\Chat\ChatService;
+use App\Documents\Chunking\ChunkingOptions;
+use App\Documents\Chunking\ChunkingService;
+use App\Documents\Chunking\PageTextAssembler;
+use App\Documents\Chunking\StructureSplitter;
 use App\Documents\DocumentParsingService;
 use App\Documents\DocumentService;
 use App\Documents\Parsing\ParserResolver;
@@ -30,6 +34,14 @@ class DocumentServiceProvider extends ServiceProvider
             $app->make(DocumentRepository::class),
             $app['filesystem']->disk($app['config']->get('documents.disk')),
             $app['config']->get('documents.directory'),
+        ));
+
+        $this->app->bind(ChunkingService::class, fn ($app) => new ChunkingService(
+            $app->make(PageTextAssembler::class),
+            $app->make(StructureSplitter::class),
+            ChunkingOptions::fromConfig($app['config']->get('rag.chunking')),
+            $app['config']->get('rag.chunking.token_estimate.cjk_per_char'),
+            $app['config']->get('rag.chunking.token_estimate.other_per_char'),
         ));
 
         $this->app->bind(DocumentQaService::class, fn ($app) => new DocumentQaService(

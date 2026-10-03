@@ -15,7 +15,11 @@ class DocumentStatusTest extends TestCase
             'uploaded → parsing' => [DocumentStatus::Uploaded, DocumentStatus::Parsing],
             'parsing → parsed' => [DocumentStatus::Parsing, DocumentStatus::Parsed],
             'parsing → failed' => [DocumentStatus::Parsing, DocumentStatus::Failed],
-            'parsed → indexing' => [DocumentStatus::Parsed, DocumentStatus::Indexing],
+            'parsed → chunking' => [DocumentStatus::Parsed, DocumentStatus::Chunking],
+            'chunking → chunked' => [DocumentStatus::Chunking, DocumentStatus::Chunked],
+            'chunking → failed' => [DocumentStatus::Chunking, DocumentStatus::Failed],
+            'chunked → chunking（重新切段）' => [DocumentStatus::Chunked, DocumentStatus::Chunking],
+            'chunked → indexing' => [DocumentStatus::Chunked, DocumentStatus::Indexing],
             'indexing → indexed' => [DocumentStatus::Indexing, DocumentStatus::Indexed],
             'failed → uploaded（重新處理）' => [DocumentStatus::Failed, DocumentStatus::Uploaded],
             'parsed → uploaded（重新處理）' => [DocumentStatus::Parsed, DocumentStatus::Uploaded],
@@ -35,6 +39,8 @@ class DocumentStatusTest extends TestCase
             'uploaded → parsed（跳過解析）' => [DocumentStatus::Uploaded, DocumentStatus::Parsed],
             'parsed → parsing（未經重新處理就重跑）' => [DocumentStatus::Parsed, DocumentStatus::Parsing],
             'failed → parsed' => [DocumentStatus::Failed, DocumentStatus::Parsed],
+            'parsed → indexing（未切段就建索引）' => [DocumentStatus::Parsed, DocumentStatus::Indexing],
+            'parsed → failed' => [DocumentStatus::Parsed, DocumentStatus::Failed],
             'indexed → indexing' => [DocumentStatus::Indexed, DocumentStatus::Indexing],
             'uploaded → uploaded' => [DocumentStatus::Uploaded, DocumentStatus::Uploaded],
             // Job 重試時停在 parsing 繼續處理，不經過狀態轉換（MySQL 對值未改變的 UPDATE 回報 0 筆，會被誤判為被搶先）
@@ -51,13 +57,21 @@ class DocumentStatusTest extends TestCase
     public function test_only_finished_states_can_be_reprocessed(): void
     {
         $this->assertSame(
-            [DocumentStatus::Parsed, DocumentStatus::Indexed, DocumentStatus::Failed],
+            [DocumentStatus::Parsed, DocumentStatus::Chunked, DocumentStatus::Indexed, DocumentStatus::Failed],
             array_values(array_filter(DocumentStatus::cases(), fn (DocumentStatus $s) => $s->canReprocess())),
+        );
+    }
+
+    public function test_states_with_pages(): void
+    {
+        $this->assertSame(
+            [DocumentStatus::Parsed, DocumentStatus::Chunking, DocumentStatus::Chunked, DocumentStatus::Indexing, DocumentStatus::Indexed],
+            array_values(array_filter(DocumentStatus::cases(), fn (DocumentStatus $s) => $s->hasPages())),
         );
     }
 
     public function test_every_status_has_a_label(): void
     {
-        $this->assertCount(6, array_unique(array_map(fn (DocumentStatus $s) => $s->label(), DocumentStatus::cases())));
+        $this->assertCount(8, array_unique(array_map(fn (DocumentStatus $s) => $s->label(), DocumentStatus::cases())));
     }
 }

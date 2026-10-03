@@ -109,6 +109,14 @@ class TextNormalizerTest extends TestCase
         $this->assertSame(['第1段正文。', '第2段正文。', '第3段正文。'], $this->normalize($pages));
     }
 
+    public function test_page_numbers_with_inconsistent_spacing_are_recognized(): void
+    {
+        // 實測 pdftotext：一位數「第1頁」、兩位數「第 10 頁」
+        $pages = array_map(fn ($i) => "第{$i}段正文。\n".($i < 10 ? "第{$i}頁" : "第 {$i} 頁"), range(1, 12));
+
+        $this->assertSame(array_map(fn ($i) => "第{$i}段正文。", range(1, 12)), $this->normalize($pages));
+    }
+
     public function test_article_headings_with_different_numbers_are_not_treated_as_headers(): void
     {
         // 只有頁碼格式的行才遮罩數字；「第1條」「第2條」不可被當成同一行而誤刪
@@ -170,6 +178,29 @@ class TextNormalizerTest extends TestCase
         $text = "應依下列規定辦理\n第十二條 特別休假\n1. 第一項\n(二) 第二項\n一、第三項\n- 第四項";
 
         $this->assertSame([$text], $this->normalize([$text], join: true));
+    }
+
+    public function test_article_reference_at_line_start_is_joined(): void
+    {
+        // 內文引用剛好被排版擠到行首，不是條文標題（Ch05 發現：否則切段會誤判成新條文）
+        $this->assertSame(
+            ['其日數之計算依第三條之一規定辦理，並應依第三條規定併入事假計算。'],
+            $this->normalize(["其日數之計算依\n第三條之一規定辦理，並應依\n第三條規定併入事假計算。"], join: true),
+        );
+    }
+
+    public function test_wrapped_list_item_continuation_is_joined(): void
+    {
+        // 清單項目自己的續行要接回（Ch05 發現：原本「上一行是清單項目就不接」）
+        $this->assertSame(
+            ["（1）申請程序：應依系統流程辦理，並於規定期限內完成。\n（2）核准權限：由主管核准。"],
+            $this->normalize(["（1）申請程序：應依系統流程辦理，並於\n規定期限內完成。\n（2）核准權限：由主管核准。"], join: true),
+        );
+    }
+
+    public function test_line_after_article_heading_is_not_joined(): void
+    {
+        $this->assertSame(["第十二條 特別休假\n員工應依規定辦理"], $this->normalize(["第十二條 特別休假\n員工應依規定辦理"], join: true));
     }
 
     public function test_lines_are_not_joined_when_disabled(): void

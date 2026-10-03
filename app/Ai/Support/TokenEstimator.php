@@ -14,11 +14,15 @@ final class TokenEstimator
 
     private const OTHER_TOKENS_PER_CHAR = 0.3;
 
-    public static function estimate(string $text): int
+    /**
+     * 預設係數為 qwen3 的實測值（Ch04 截斷判斷使用）。切段使用 config/rag.php 中較保守的係數，
+     * 因為切段是給另一個模型（bge-m3）用的，寧可高估。
+     */
+    public static function estimate(string $text, float $cjkPerChar = self::CJK_TOKENS_PER_CHAR, float $otherPerChar = self::OTHER_TOKENS_PER_CHAR): int
     {
         $cjk = preg_match_all('/[\x{3000}-\x{303F}\x{3400}-\x{4DBF}\x{4E00}-\x{9FFF}\x{F900}-\x{FAFF}\x{FF00}-\x{FFEF}]/u', $text);
         $other = mb_strlen($text) - $cjk;
 
-        return (int) ceil($cjk * self::CJK_TOKENS_PER_CHAR + $other * self::OTHER_TOKENS_PER_CHAR);
+        return (int) ceil($cjk * $cjkPerChar + $other * $otherPerChar);
     }
 }

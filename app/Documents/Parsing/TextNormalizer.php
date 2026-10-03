@@ -2,6 +2,8 @@
 
 namespace App\Documents\Parsing;
 
+use App\Documents\StructureMarkers;
+
 /**
  * 解析後文字的正規化。原則：不確定就保留原樣（寧可少改，不可改錯正文）。
  *
@@ -121,7 +123,9 @@ class TextNormalizer
     {
         $line = trim($line);
 
-        return $this->isPageNumberLine($line) ? preg_replace('/\d+/', '#', $line) : $line;
+        // 頁碼行比對前去掉空白：pdftotext 會把一位數輸出成「第1頁」、兩位數輸出成「第 10 頁」（Ch05 實測），
+        // 不統一的話第 10 頁以後會被當成另一種行，達不到過半的門檻而沒被移除
+        return $this->isPageNumberLine($line) ? preg_replace(['/\s+/u', '/\d+/'], ['', '#'], $line) : $line;
     }
 
     /** 只由數字與頁碼常用字組成的行，例如「第 1 頁 / 共 3 頁」、「- 3 -」、「Page 2 of 10」 */
@@ -133,7 +137,10 @@ class TextNormalizer
 
     /**
      * 接回排版造成的斷行。以下情況保留換行：空行（段落）、上一行以句末標點結尾、
-     * 任一行是條文標題或清單項目。無法判斷的一律保留。
+     * 上一行是標題（條、章、Markdown）、下一行是標題或清單項目的開頭。無法判斷的一律保留。
+     *
+     * 清單項目自己的續行要接回（「（1）申請程序：…並於／規定期限內…」）；
+     * 落在行首的內文引用（「第三條之一規定辦理」）不是標題，也要接回。判斷規則見 StructureMarkers。
      *
      * @param  list<string>  $lines
      * @return list<string>
@@ -160,17 +167,9 @@ class TextNormalizer
         return trim($previous) !== ''
             && trim($next) !== ''
             && preg_match('/[。！？；：!?;:.][」』"\')）]*$/u', $previous) !== 1
-            && ! $this->isStructural($previous)
-            && ! $this->isStructural($next);
-    }
-
-    /** 條文／章節標題（第十二條、第三章）或清單項目（1.、一、、(一)、- ） */
-    private function isStructural(string $line): bool
-    {
-        return preg_match(
-            '/^\s*(第[一二三四五六七八九十百千零〇\d]+[條章節款項]|\d+[.、)]|[一二三四五六七八九十]+、|[（(][一二三四五六七八九十\d]+[）)]|[-*•・]\s)/u',
-            $line,
-        ) === 1;
+            && ! StructureMarkers::isHeading($previous)
+            && ! StructureMarkers::isHeading($next)
+            && ! StructureMarkers::isListItem($next);
     }
 
     /** 中文與中文、中文與英文之間直接相接；英文與英文之間補一個空白；英文斷字（full-\ntime）直接相接 */

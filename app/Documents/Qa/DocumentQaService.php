@@ -6,7 +6,6 @@ use App\Ai\Chat\ChatService;
 use App\Ai\Chat\DTO\ChatOptions;
 use App\Ai\Chat\DTO\Message;
 use App\Ai\Chat\DTO\Role;
-use App\Documents\DocumentStatus;
 use App\Documents\Exceptions\DocumentNotReadyException;
 use App\Models\Document;
 
@@ -16,9 +15,6 @@ use App\Models\Document;
  */
 class DocumentQaService
 {
-    /** 已解析完成、可以提問的狀態 */
-    private const READY = [DocumentStatus::Parsed, DocumentStatus::Indexing, DocumentStatus::Indexed];
-
     public function __construct(
         private readonly ChatService $chat,
         private readonly DocumentContextBuilder $contexts,
@@ -30,7 +26,7 @@ class DocumentQaService
      */
     public function ask(Document $document, string $question, ?ChatOptions $options = null, ?string $provider = null): DocumentAnswer
     {
-        if (! in_array($document->status_key, self::READY, true)) {
+        if (! $document->status_key->hasPages()) {
             throw DocumentNotReadyException::for($document->id, $document->status_key);
         }
 

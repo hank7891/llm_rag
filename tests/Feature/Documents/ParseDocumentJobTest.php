@@ -3,11 +3,13 @@
 namespace Tests\Feature\Documents;
 
 use App\Documents\DocumentStatus;
+use App\Jobs\ChunkDocumentJob;
 use App\Jobs\ParseDocumentJob;
 use App\Models\Document;
 use App\Repositories\DocumentPageRepository;
 use App\Repositories\DocumentRepository;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Tests\TestCase;
@@ -21,6 +23,8 @@ class ParseDocumentJobTest extends TestCase
         parent::setUp();
 
         Storage::fake(config('documents.disk'));
+        // 解析完成後會派送 ChunkDocumentJob；測試環境的 Queue 是 sync，不攔下來會立刻接著切段
+        Queue::fake();
     }
 
     /** 把樣本檔放進假的 Disk 並建立 uploaded 狀態的文件 */
@@ -58,6 +62,22 @@ class ParseDocumentJobTest extends TestCase
             [DocumentStatus::Parsed, 3, [1, 2, 3], null],
             [$fresh->status_key, $fresh->page_count, $fresh->pages()->pluck('page_number')->all(), $fresh->error_message],
         );
+    }
+
+    public function test_chunk_job_is_dispatched_after_parsing(): void
+    {
+        $document = $this->upload('handbook.pdf', 'application/pdf');
+
+        $this->handleJob($document);
+
+        Queue::assertPushed(ChunkDocumentJob::class, fn (ChunkDocumentJob $job) => $job->documentId === $document->id);
+    }
+
+    public function test_chunk_job_is_not_dispatched_when_parsing_fails(): void
+    {
+        $this->handleJob($this->upload('broken.pdf', 'application/pdf'));
+
+        Queue::assertNotPushed(ChunkDocumentJob::class);
     }
 
     public function test_parsed_pages_are_normalized(): void
