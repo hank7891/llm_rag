@@ -51,8 +51,8 @@ class OllamaProvider implements ChatProviderInterface, EmbeddingProviderInterfac
         $model = $options->model ?? $this->config['embedding_model'] ?? throw new LogicException('[ollama] No embedding model configured (OLLAMA_EMBED_MODEL).');
         $spec = $this->embeddingModels->spec($model);
         $prefix = $options->inputType === EmbeddingInputType::Query ? $spec['query_prefix'] : $spec['document_prefix'];
-        // 實測：不明確設定 num_ctx 與 num_batch 時，Ollama 只處理約 2048 Token（即使模型支援 8192）
-        $context = min($spec['max_tokens'], $this->config['embedding_num_ctx'] ?? 8192);
+        // num_ctx / num_batch 決定單段輸入的上限（Ollama 預設約 2048）；是記憶體與餘裕的取捨，不必開到模型最大值
+        $context = $this->config['embedding_num_ctx'] ?? 2048;
 
         $vectors = [];
         $tokens = 0;
@@ -62,7 +62,7 @@ class OllamaProvider implements ChatProviderInterface, EmbeddingProviderInterfac
             $json = $this->postEmbed([
                 'model' => $model,
                 'input' => array_map(fn (string $text) => $prefix.$text, $batch),
-                // false：超過長度時回 HTTP 400，而不是靜默截斷（Ollama 預設會截斷）
+                // false：超過上限時回 HTTP 400，而不是截斷後照樣回傳 HTTP 200（Ollama 預設會截斷）
                 'truncate' => false,
                 'options' => ['num_ctx' => $context, 'num_batch' => $context],
             ], $model, $context);

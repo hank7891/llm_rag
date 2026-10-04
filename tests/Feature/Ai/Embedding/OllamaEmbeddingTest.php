@@ -20,11 +20,11 @@ class OllamaEmbeddingTest extends TestCase
 
     private const QWEN_PREFIX = "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:";
 
-    private function provider(int $batchSize = 16): OllamaProvider
+    private function provider(int $batchSize = 16, int $numCtx = 2048): OllamaProvider
     {
         return new OllamaProvider([
             'base_url' => 'http://ollama.test', 'model' => 'qwen3:8b',
-            'embedding_model' => 'bge-m3', 'embedding_batch_size' => $batchSize, 'embedding_num_ctx' => 8192,
+            'embedding_model' => 'bge-m3', 'embedding_batch_size' => $batchSize, 'embedding_num_ctx' => $numCtx,
             'num_ctx' => 8192, 'think' => false, 'truncate' => true, 'connect_timeout' => 5, 'timeout' => 120, 'stream_timeout' => 300,
         ], new EmbeddingModels(config('llm.embedding.models')));
     }
@@ -61,18 +61,32 @@ class OllamaEmbeddingTest extends TestCase
         Http::assertSent(fn (Request $r) => [$r['model'], $r['input'], $r['truncate']] === ['bge-m3', ['甲', '乙乙'], false]);
     }
 
-    public function test_context_and_batch_are_explicit_and_capped_by_model_limit(): void
+    public function test_num_ctx_and_num_batch_use_the_configured_value_for_every_model(): void
     {
-        // 實測：不設定時 Ollama 只處理約 2048 Token。bge-m3 上限 8192；qwen3-embedding 上限 32768 但被設定限制在 8192
+        // 上限是記憶體與餘裕的取捨，由設定決定，不再取 min(模型上限, 8192)
         $this->fakeEmbed();
 
         $this->embed(['甲']);
         $this->embed(['甲'], model: 'qwen3-embedding:0.6b');
 
         $this->assertSame(
-            [['num_ctx' => 8192, 'num_batch' => 8192], ['num_ctx' => 8192, 'num_batch' => 8192]],
+            [['num_ctx' => 2048, 'num_batch' => 2048], ['num_ctx' => 2048, 'num_batch' => 2048]],
             Http::recorded()->map(fn ($pair) => $pair[0]['options'])->all(),
         );
+    }
+
+    public function test_num_ctx_can_be_raised_for_longer_inputs(): void
+    {
+        $this->fakeEmbed();
+
+        $this->provider(numCtx: 8192)->embed(['甲'], new EmbeddingOptions(EmbeddingInputType::Document));
+
+        Http::assertSent(fn (Request $r) => $r['options'] === ['num_ctx' => 8192, 'num_batch' => 8192]);
+    }
+
+    public function test_config_default_is_2048(): void
+    {
+        $this->assertSame(2048, config('llm.ollama.embedding_num_ctx'));
     }
 
     public function test_bge_m3_gets_no_prefix(): void
@@ -155,7 +169,7 @@ class OllamaEmbeddingTest extends TestCase
         Http::fake([self::URL => Http::response(['error' => 'the input length exceeds the context length'], 400)]);
 
         $this->expectException(EmbeddingInputTooLongException::class);
-        $this->expectExceptionMessage('Embedding input exceeds 8192 tokens for model [bge-m3]');
+        $this->expectExceptionMessage('Embedding input exceeds 2048 tokens for model [bge-m3]');
 
         $this->embed([str_repeat('中', 9000)]);
     }

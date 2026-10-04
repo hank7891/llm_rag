@@ -66,9 +66,11 @@ return [
         'embedding_model' => env('OLLAMA_EMBED_MODEL', 'bge-m3'),
         // 每次送給 /api/embed 的段數，主要受這台機器的記憶體影響
         'embedding_batch_size' => (int) env('OLLAMA_EMBED_BATCH_SIZE', 16),
-        // Embedding 的 num_ctx 與 num_batch 上限（實測：不設定時 Ollama 只處理約 2048 Token 就截斷，
-        // 即使 bge-m3 支援 8192）。實際使用 min(模型上限, 此值)；開越大越吃記憶體
-        'embedding_num_ctx' => (int) env('OLLAMA_EMBED_NUM_CTX', 8192),
+        // Embedding 的 num_ctx（num_batch 使用同一個值）：決定「單段輸入的上限有多大」。
+        // Ollama 預設約 2048 Token；需要更長的輸入才調高（bge-m3 最多 8192）。開越大越吃記憶體：
+        // 主要是 num_batch 的運算暫存，其次是 KV Cache（實測 qwen3-embedding 8192 時 6.7GB、2048 時 2.1GB）。
+        // 本專案的 Chunk 最長約 400 Token，2048 已有足夠餘裕。超過上限時是否報錯由 truncate 決定（一律 false）
+        'embedding_num_ctx' => (int) env('LLM_EMBEDDING_NUM_CTX', 2048),
         'num_ctx' => (int) env('OLLAMA_NUM_CTX', 8192),
         'think' => (bool) env('OLLAMA_THINK', false),
         // true（Ollama 預設）：超過 num_ctx 時靜默截斷，從前面砍掉內容；false：直接回錯誤
