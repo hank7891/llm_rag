@@ -9,6 +9,14 @@ use App\Ai\Chat\DTO\FinishReason;
 use App\Ai\Chat\DTO\Message;
 use App\Ai\Chat\DTO\StreamChunk;
 use App\Ai\Chat\DTO\Usage;
+use App\Ai\Embedding\Contracts\EmbeddingProviderInterface;
+use App\Ai\Embedding\DTO\EmbeddingInputType;
+use App\Ai\Embedding\DTO\EmbeddingOptions;
+use App\Ai\Embedding\DTO\EmbeddingResult;
+use App\Ai\Embedding\EmbeddingModels;
+use App\Ai\Embedding\Exceptions\EmbeddingCountMismatchException;
+use App\Ai\Embedding\Exceptions\EmbeddingInputTooLongException;
+use App\Ai\Exceptions\LlmClientException;
 use App\Ai\Exceptions\LlmResponseFormatException;
 use App\Ai\Exceptions\LlmServerException;
 use App\Ai\Support\JsonField;
@@ -19,17 +27,89 @@ use Illuminate\Support\Facades\Http;
 use LogicException;
 
 /**
- * Ollama 原生 /api/chat。system 直接放在 messages 中，角色名稱與內部格式相同。
- * 思考內容（message.thinking）一律捨棄，不混進回答。
+ * Ollama：Chat 使用原生 /api/chat（system 直接放在 messages 中，思考內容一律捨棄）；
+ * Embedding 使用 /api/embed（Ch06）。Ollama 兩種能力都有，所以同時實作兩個介面。
  */
-class OllamaProvider implements ChatProviderInterface
+class OllamaProvider implements ChatProviderInterface, EmbeddingProviderInterface
 {
     private const NAME = 'ollama';
 
     /**
-     * @param  array{base_url: string, model: ?string, num_ctx: int, think: bool, truncate: bool, connect_timeout: int, timeout: int, stream_timeout: int}  $config
+     * @param  array{base_url: string, model: ?string, embedding_model?: string, embedding_batch_size?: int, embedding_num_ctx?: int, num_ctx: int, think: bool, truncate: bool, connect_timeout: int, timeout: int, stream_timeout: int}  $config
      */
-    public function __construct(private readonly array $config) {}
+    public function __construct(
+        private readonly array $config,
+        private readonly EmbeddingModels $embeddingModels = new EmbeddingModels([]),
+    ) {}
+
+    /**
+     * 依 batch_size 分批送出，合併時維持原始順序。每一批都檢查「送幾段、回幾個向量」，
+     * 不一致就停下來，避免向量配錯段落。
+     */
+    public function embed(array $texts, EmbeddingOptions $options): EmbeddingResult
+    {
+        $model = $options->model ?? $this->config['embedding_model'] ?? throw new LogicException('[ollama] No embedding model configured (OLLAMA_EMBED_MODEL).');
+        $spec = $this->embeddingModels->spec($model);
+        $prefix = $options->inputType === EmbeddingInputType::Query ? $spec['query_prefix'] : $spec['document_prefix'];
+        // 實測：不明確設定 num_ctx 與 num_batch 時，Ollama 只處理約 2048 Token（即使模型支援 8192）
+        $context = min($spec['max_tokens'], $this->config['embedding_num_ctx'] ?? 8192);
+
+        $vectors = [];
+        $tokens = 0;
+        $returnedModel = $model;
+
+        foreach (array_chunk($texts, max(1, $this->config['embedding_batch_size'] ?? 16)) as $batch) {
+            $json = $this->postEmbed([
+                'model' => $model,
+                'input' => array_map(fn (string $text) => $prefix.$text, $batch),
+                // false：超過長度時回 HTTP 400，而不是靜默截斷（Ollama 預設會截斷）
+                'truncate' => false,
+                'options' => ['num_ctx' => $context, 'num_batch' => $context],
+            ], $model, $context);
+
+            $embeddings = $json['embeddings'] ?? null;
+
+            if (! is_array($embeddings) || ! array_is_list($embeddings)) {
+                throw new LlmResponseFormatException('[ollama] Missing or invalid field [embeddings].');
+            }
+
+            if (count($embeddings) !== count($batch)) {
+                throw EmbeddingCountMismatchException::of(self::NAME, count($batch), count($embeddings));
+            }
+
+            foreach ($embeddings as $vector) {
+                $vectors[] = array_map('floatval', is_array($vector) ? $vector : []);
+            }
+
+            $tokens += JsonField::tokenCount(self::NAME, $json, 'prompt_eval_count');
+            $returnedModel = is_string($json['model'] ?? null) ? $json['model'] : $model;
+        }
+
+        return new EmbeddingResult($vectors, $returnedModel, count($vectors[0] ?? []), $tokens);
+    }
+
+    /**
+     * 呼叫 /api/embed，並把「超過長度」轉成明確的例外。實測錯誤訊息為 HTTP 400
+     * 「the input length exceeds the context length」，不含 Token 數。
+     *
+     * @param  array<string, mixed>  $body
+     * @return array<mixed>
+     */
+    private function postEmbed(array $body, string $model, int $context): array
+    {
+        try {
+            return LlmHttp::postJson(self::NAME, $this->request(), '/api/embed', $body);
+        } catch (LlmClientException $e) {
+            if (str_contains($e->getMessage(), 'exceeds the context length')) {
+                throw new EmbeddingInputTooLongException(
+                    "[ollama] Embedding input exceeds {$context} tokens for model [{$model}]; check the chunk size limit (config/rag.php).",
+                    previous: $e,
+                );
+            }
+
+            throw $e;
+        }
+    }
 
     public function chat(array $messages, ChatOptions $options): ChatResult
     {

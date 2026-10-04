@@ -6,6 +6,8 @@ use App\Ai\Chat\ChatService;
 use App\Ai\Chat\Providers\GeminiProvider;
 use App\Ai\Chat\Providers\OllamaProvider;
 use App\Ai\Chat\Providers\OpenAIProvider;
+use App\Ai\Embedding\EmbeddingModels;
+use App\Ai\Embedding\EmbeddingService;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -22,7 +24,17 @@ class AiServiceProvider extends ServiceProvider
             $app['log'],
         ));
 
-        $this->app->bind(OllamaProvider::class, fn ($app) => new OllamaProvider($app['config']->get('llm.ollama')));
+        $this->app->singleton(EmbeddingModels::class, fn ($app) => new EmbeddingModels($app['config']->get('llm.embedding.models', [])));
+
+        $this->app->singleton(EmbeddingService::class, fn ($app) => new EmbeddingService(
+            $app,
+            $app['config']->get('llm.embedding.providers', []),
+            $app['config']->get('llm.embedding.default'),
+            $app->make(EmbeddingModels::class),
+            $app['log'],
+        ));
+
+        $this->app->bind(OllamaProvider::class, fn ($app) => new OllamaProvider($app['config']->get('llm.ollama'), $app->make(EmbeddingModels::class)));
         $this->app->bind(OpenAIProvider::class, fn ($app) => new OpenAIProvider($app['config']->get('llm.openai')));
         $this->app->bind(GeminiProvider::class, fn ($app) => new GeminiProvider($app['config']->get('llm.gemini')));
     }
