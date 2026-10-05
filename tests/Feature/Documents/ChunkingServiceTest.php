@@ -43,10 +43,28 @@ class ChunkingServiceTest extends TestCase
     public function test_regulation_is_split_one_article_per_chunk(): void
     {
         $this->assertSame(
-            [null, '第一章 總則 / 第一條', '第一章 總則 / 第二條', '第二章 請假 / 第三條', '第二章 請假 / 第三條之一', '第二章 請假 / 第四條', '第二章 請假 / 第四條',
+            ['第一章 總則 / 第一條', '第一章 總則 / 第二條', '第二章 請假 / 第三條', '第二章 請假 / 第三條之一', '第二章 請假 / 第四條', '第二章 請假 / 第四條',
                 '第二章 請假 / 第五條', '第 3 章 附則 / 第六條', '第 3 章 附則 / 第7條', '第 3 章 附則 / 第7條之1'],
             array_map(fn (ChunkDraft $c) => $c->section, $this->chunk('regulation.pdf')),
         );
+    }
+
+    public function test_short_preamble_is_merged_into_first_section(): void
+    {
+        // Ch08 實測：只有文件標題的 Chunk 和任何問題都「有點像」，無答案題的 Top-1 都是它
+        $first = $this->chunk('regulation.pdf')[0];
+
+        $this->assertSame(['第一章 總則 / 第一條', true], [$first->section, str_starts_with($first->content, '員工差勤管理規章')]);
+    }
+
+    public function test_preamble_with_enough_content_stays_separate(): void
+    {
+        $preamble = str_repeat('本規章說明公司差勤制度的背景與適用原則。', 6);
+        $service = $this->app->make(ChunkingService::class);
+
+        $chunks = $service->chunk([1 => "{$preamble}\n第一條 目的\n為建立差勤管理制度，特訂定本規章。"]);
+
+        $this->assertSame([null, '第一條 目的'], array_map(fn (ChunkDraft $c) => $c->section, $chunks));
     }
 
     public function test_cross_page_article_has_page_range(): void

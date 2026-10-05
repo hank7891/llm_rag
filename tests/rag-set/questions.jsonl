@@ -1,0 +1,30 @@
+{"id": "q01", "type": "exact", "question": "特別休假因年度終結而未休之日數，雇主應如何處理？", "expected": [{"document": "員工管理辦法.pdf", "section": "第十二條"}, {"document": "員工差勤管理規章.pdf", "section": "第四條"}]}
+{"id": "q02", "type": "exact", "question": "事假全年合計不得超過幾日？", "expected": [{"document": "員工差勤管理規章.pdf", "section": "第三條"}, {"document": "請假規則-Big5.txt", "section": null}]}
+{"id": "q03", "type": "exact", "question": "家庭照顧假全年以幾日為限？", "expected": [{"document": "員工差勤管理規章.pdf", "section": "第三條之一"}]}
+{"id": "q04", "type": "exact", "question": "員工識別證遺失的補發費用是多少？", "expected": [{"document": "員工工作規則（長文件・修正版）.pdf", "section": "第一條"}]}
+{"id": "q05", "type": "exact", "question": "每年度員工健康檢查補助上限是多少？", "expected": [{"document": "員工工作規則（長文件・修正版）.pdf", "section": "第二十五條"}]}
+{"id": "q06", "type": "exact", "question": "新進員工的試用期多久？", "expected": [{"document": "新進員工手冊.md", "section": "常見問題"}]}
+{"id": "q07", "type": "exact", "question": "員工因急病無法事先請假時，應於幾小時內通知直屬主管？", "expected": [{"document": "員工差勤管理規章.pdf", "section": "第五條"}]}
+{"id": "q08", "type": "paraphrase", "question": "我的假沒休完怎麼辦？", "expected": [{"document": "員工管理辦法.pdf", "section": "第十二條"}, {"document": "員工差勤管理規章.pdf", "section": "第四條"}]}
+{"id": "q09", "type": "paraphrase", "question": "特休沒休完可以延到明年嗎？", "expected": [{"document": "員工管理辦法.pdf", "section": "第十二條"}, {"document": "員工差勤管理規章.pdf", "section": "第四條"}]}
+{"id": "q10", "type": "paraphrase", "question": "剛進公司半年有幾天特休？", "expected": [{"document": "員工管理辦法.pdf", "section": "第十二條"}]}
+{"id": "q11", "type": "paraphrase", "question": "小孩要打疫苗可以請什麼假？", "expected": [{"document": "員工差勤管理規章.pdf", "section": "第三條之一"}]}
+{"id": "q12", "type": "paraphrase", "question": "臨時生病來不及請假怎麼辦？", "expected": [{"document": "員工差勤管理規章.pdf", "section": "第五條"}]}
+{"id": "q13", "type": "paraphrase", "question": "識別證不見了要自己出錢嗎？", "expected": [{"document": "員工工作規則（長文件・修正版）.pdf", "section": "第一條"}]}
+{"id": "q14", "type": "paraphrase", "question": "公司體檢最多補助多少錢？", "expected": [{"document": "員工工作規則（長文件・修正版）.pdf", "section": "第二十五條"}]}
+{"id": "q15", "type": "paraphrase", "question": "新人第一天要帶哪些東西？", "expected": [{"document": "新進員工手冊.md", "section": "第一天"}, {"document": "新進員工指南.md", "section": "報到流程"}]}
+{"id": "q16", "type": "paraphrase", "question": "公司的筆電可以自己裝軟體嗎？", "expected": [{"document": "新進員工手冊.md", "section": "資訊設備"}, {"document": "資訊設備盤點公告.txt", "section": null}]}
+{"id": "q17", "type": "paraphrase", "question": "我想看自己的出勤紀錄可以嗎？", "expected": [{"document": "員工差勤管理規章.pdf", "section": "第六條"}]}
+{"id": "q18", "type": "paraphrase", "question": "員工資料外洩之後要多久內評估影響？", "expected": [{"document": "員工差勤管理規章.pdf", "section": "第六條"}]}
+{"id": "q19", "type": "paraphrase", "question": "電腦盤點那天筆電放在家裡怎麼辦？", "expected": [{"document": "資訊設備盤點公告.txt", "section": null}]}
+{"id": "q20", "type": "exact_id", "question": "HR-2026 是什麼的代碼？", "expected": [{"document": "員工管理辦法.pdf", "section": "第十二條"}]}
+{"id": "q21", "type": "exact_id", "question": "ABC-123 是哪份規定裡的代碼？", "expected": [{"document": "請假規則-Big5.txt", "section": null}]}
+{"id": "q22", "type": "exact_id", "question": "第7條之1 規定了什麼？", "expected": [{"document": "員工差勤管理規章.pdf", "section": "第7條之1"}]}
+{"id": "q23", "type": "exact_id", "question": "第三條之一的內容是什麼？", "expected": [{"document": "員工差勤管理規章.pdf", "section": "第三條之一"}]}
+{"id": "q24", "type": "exact_id", "question": "115 年 3 月 18 日起施行的是哪份規定？", "expected": [{"document": "員工工作規則（長文件・修正版）.pdf", "section": "第四十九條"}]}
+{"id": "q25", "type": "no_answer", "question": "公司有提供員工宿舍嗎？", "expected": []}
+{"id": "q26", "type": "no_answer", "question": "停車場收費標準是什麼？", "expected": []}
+{"id": "q27", "type": "no_answer", "question": "員工餐廳幾點開始供餐？", "expected": []}
+{"id": "q28", "type": "no_answer", "question": "尾牙抽獎的獎品有哪些？", "expected": []}
+{"id": "q29", "type": "no_answer", "question": "公司的 Wi-Fi 密碼是什麼？", "expected": []}
+{"id": "q30", "type": "no_answer", "question": "可以帶寵物來上班嗎？", "expected": []}

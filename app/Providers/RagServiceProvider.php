@@ -3,15 +3,17 @@
 namespace App\Providers;
 
 use App\Ai\Embedding\EmbeddingService;
+use App\Rag\Retrieval\RetrieverService;
 use App\Rag\VectorStore\ChunkIndexer;
 use App\Rag\VectorStore\CollectionManager;
 use App\Rag\VectorStore\CollectionResolver;
 use App\Rag\VectorStore\QdrantClient;
+use App\Rag\VectorStore\VectorSearcher;
 use App\Repositories\DocumentChunkRepository;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * 向量資料庫元件的組裝處：讀取 config/rag.php 的 qdrant 區塊。
+ * 向量資料庫與檢索元件的組裝處：讀取 config/rag.php 的 qdrant、retrieval 區塊。
  */
 class RagServiceProvider extends ServiceProvider
 {
@@ -30,6 +32,14 @@ class RagServiceProvider extends ServiceProvider
             $app->make(QdrantClient::class),
             $app->make(DocumentChunkRepository::class),
             $app['config']->get('rag.qdrant.upsert_batch_size'),
+        ));
+
+        // 門檻以整個陣列注入：模型名稱含「.」（如 qwen3-embedding:0.6b），不能用 config 的點號路徑取值
+        $this->app->bind(RetrieverService::class, fn ($app) => new RetrieverService(
+            $app->make(VectorSearcher::class),
+            $app->make(EmbeddingService::class),
+            $app['config']->get('rag.retrieval.top_k'),
+            $app['config']->get('rag.retrieval.score_thresholds'),
         ));
     }
 }

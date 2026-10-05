@@ -94,9 +94,12 @@ class QdrantClient
      * @param  array<string, mixed>  $filter
      * @return list<array{id: int|string, score: float, payload: array<string, mixed>}>
      */
-    public function query(string $collection, array $vector, int $limit, array $filter = []): array
+    public function query(string $collection, array $vector, int $limit, array $filter = [], ?float $scoreThreshold = null): array
     {
-        $body = ['query' => $vector, 'limit' => $limit, 'with_payload' => true] + ($filter === [] ? [] : ['filter' => $filter]);
+        $body = ['query' => $vector, 'limit' => $limit, 'with_payload' => true]
+            + ($filter === [] ? [] : ['filter' => $filter])
+            // 實測（Qdrant 1.19、Cosine）：分數「大於」門檻才保留，等於門檻的會被排除
+            + ($scoreThreshold === null ? [] : ['score_threshold' => $scoreThreshold]);
 
         return array_map(
             fn (array $point) => ['id' => $point['id'], 'score' => (float) $point['score'], 'payload' => $point['payload'] ?? []],

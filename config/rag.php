@@ -1,7 +1,7 @@
 <?php
 
 /*
- * RAG 流程的參數（切段，之後的檢索、Top-K 也放這裡）。改參數不需要改程式。
+ * RAG 流程的參數（切段、檢索、向量資料庫）。改參數不需要改程式。
  */
 return [
 
@@ -16,7 +16,7 @@ return [
         // 同一段落被迫切開時，下一段開頭重疊的比例（對齊句子）；條與條之間不重疊
         'overlap_ratio' => (float) env('RAG_CHUNK_OVERLAP_RATIO', 0.15),
 
-        // 低於此估算 Token 數的尾段併回前一段，避免過碎的 Chunk
+        // 低於此估算 Token 數的尾段併回前一段、開頭段（通常只有文件標題）併入下一段，避免過碎的 Chunk
         'min_tokens' => (int) env('RAG_CHUNK_MIN_TOKENS', 80),
 
         // Token 估算係數（字元數 × 係數）。刻意保守：Ch04 量到 qwen3 每個中文字約 0.75 Token，
@@ -24,6 +24,24 @@ return [
         'token_estimate' => [
             'cjk_per_char' => 1.0,
             'other_per_char' => 0.3,
+        ],
+
+    ],
+
+    'retrieval' => [
+
+        // 未指定時回傳的筆數
+        'top_k' => (int) env('RAG_TOP_K', 5),
+
+        // 相關度門檻，依 Embedding 模型分別設定（Cosine 分數的絕對值依模型而不同，不可沿用）。
+        // 分數「大於」門檻才保留（Qdrant score_threshold 實測）。沒有設定門檻的模型不可直接檢索，
+        // 避免沒有門檻、無關內容全部通過
+        'score_thresholds' => [
+            // Ch08 測試集（30 題）：無答案題 Top-1 最高 0.5665、有答案題（不含精確編號）最低 0.6106，
+            // 取間隔中點（0.589）略偏高。理由與分數分布見 docs/notes/ch08-semantic-search.md
+            'bge-m3' => 0.59,
+            // 同一份測試集：無答案題 Top-1 最高 0.4691、有答案題（不含精確編號）最低 0.4899，取間隔中點
+            'qwen3-embedding:0.6b' => 0.48,
         ],
 
     ],

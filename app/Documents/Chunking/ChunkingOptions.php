@@ -34,9 +34,14 @@ final readonly class ChunkingOptions
         return (int) floor($this->maxTokens * $this->overlapRatio);
     }
 
-    /** 寫入 document_chunks.chunk_strategy，例如 structure_v1:max600:ov15，Ch08 比較設定時用 */
+    /**
+     * 寫入 document_chunks.chunk_strategy，例如 structure_v2:max600:ov15。
+     * structure v2（Ch08）：過短的開頭段併入下一段。
+     */
     public function label(): string
     {
-        return sprintf('%s_v1:max%d:ov%d', $this->strategy, $this->maxTokens, (int) round($this->overlapRatio * 100));
+        $version = $this->strategy === self::STRUCTURE ? 2 : 1;
+
+        return sprintf('%s_v%d:max%d:ov%d', $this->strategy, $version, $this->maxTokens, (int) round($this->overlapRatio * 100));
     }
 }

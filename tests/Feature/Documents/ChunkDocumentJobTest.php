@@ -95,7 +95,7 @@ class ChunkDocumentJobTest extends TestCase
 
         $this->handle($document);
 
-        $this->assertSame('structure_v1:max600:ov15', $document->chunks()->value('chunk_strategy'));
+        $this->assertSame('structure_v2:max600:ov15', $document->chunks()->value('chunk_strategy'));
     }
 
     public function test_rechunking_does_not_increase_chunk_count(): void
@@ -205,7 +205,7 @@ class ChunkDocumentJobTest extends TestCase
 
         $this->artisan('rag:chunks', ['document' => $document->id])
             ->expectsOutputToContain('第一章 總則 / 第六條 資料保存')
-            ->expectsOutputToContain('structure_v1:max600:ov15')
+            ->expectsOutputToContain('structure_v2:max600:ov15')
             ->assertSuccessful();
     }
 

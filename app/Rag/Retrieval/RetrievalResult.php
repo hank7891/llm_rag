@@ -1,0 +1,24 @@
+<?php
+
+namespace App\Rag\Retrieval;
+
+/**
+ * 一次檢索的結果與實際使用的條件。
+ *
+ * chunks 為空代表「無候選」：沒有任何結果超過門檻。下一章依 hasCandidates() 直接回答「資料不足」，不呼叫 LLM。
+ */
+final readonly class RetrievalResult
+{
+    /** @param list<RetrievedChunk> $chunks 依分數由高到低 */
+    public function __construct(
+        public array $chunks,
+        public string $model,
+        public int $topK,
+        public ?float $scoreThreshold,
+    ) {}
+
+    public function hasCandidates(): bool
+    {
+        return $this->chunks !== [];
+    }
+}
