@@ -12,6 +12,12 @@
             <directory>tests/Feature</directory>
         </testsuite>
     </testsuites>
+    <groups>
+        <exclude>
+            <!-- 連線真實 Qdrant 的整合測試，預設不執行；執行方式見 tests/Feature/Rag/QdrantIntegrationTest.php -->
+            <group>qdrant</group>
+        </exclude>
+    </groups>
     <source>
         <include>
             <directory>app</directory>

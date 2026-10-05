@@ -12,4 +12,5 @@ Route::controller(DocumentController::class)->prefix('document')->name('document
     Route::post('/upload', 'store')->name('store');
     Route::get('/{document}', 'show')->whereNumber('document')->name('show');
     Route::post('/{document}/reprocess', 'reprocess')->whereNumber('document')->name('reprocess');
+    Route::delete('/{document}', 'destroy')->whereNumber('document')->name('destroy');
 });

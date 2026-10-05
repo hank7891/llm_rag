@@ -21,6 +21,9 @@ class DocumentStatusTest extends TestCase
             'chunked → chunking（重新切段）' => [DocumentStatus::Chunked, DocumentStatus::Chunking],
             'chunked → indexing' => [DocumentStatus::Chunked, DocumentStatus::Indexing],
             'indexing → indexed' => [DocumentStatus::Indexing, DocumentStatus::Indexed],
+            'indexing → failed' => [DocumentStatus::Indexing, DocumentStatus::Failed],
+            'indexed → indexing（重建索引）' => [DocumentStatus::Indexed, DocumentStatus::Indexing],
+            'indexed → chunking（重新切段）' => [DocumentStatus::Indexed, DocumentStatus::Chunking],
             'failed → uploaded（重新處理）' => [DocumentStatus::Failed, DocumentStatus::Uploaded],
             'parsed → uploaded（重新處理）' => [DocumentStatus::Parsed, DocumentStatus::Uploaded],
         ];
@@ -41,7 +44,8 @@ class DocumentStatusTest extends TestCase
             'failed → parsed' => [DocumentStatus::Failed, DocumentStatus::Parsed],
             'parsed → indexing（未切段就建索引）' => [DocumentStatus::Parsed, DocumentStatus::Indexing],
             'parsed → failed' => [DocumentStatus::Parsed, DocumentStatus::Failed],
-            'indexed → indexing' => [DocumentStatus::Indexed, DocumentStatus::Indexing],
+            'chunked → indexed（跳過建索引）' => [DocumentStatus::Chunked, DocumentStatus::Indexed],
+            'indexed → failed' => [DocumentStatus::Indexed, DocumentStatus::Failed],
             'uploaded → uploaded' => [DocumentStatus::Uploaded, DocumentStatus::Uploaded],
             // Job 重試時停在 parsing 繼續處理，不經過狀態轉換（MySQL 對值未改變的 UPDATE 回報 0 筆，會被誤判為被搶先）
             'parsing → parsing' => [DocumentStatus::Parsing, DocumentStatus::Parsing],
@@ -59,6 +63,14 @@ class DocumentStatusTest extends TestCase
         $this->assertSame(
             [DocumentStatus::Parsed, DocumentStatus::Chunked, DocumentStatus::Indexed, DocumentStatus::Failed],
             array_values(array_filter(DocumentStatus::cases(), fn (DocumentStatus $s) => $s->canReprocess())),
+        );
+    }
+
+    public function test_only_idle_states_can_be_deleted(): void
+    {
+        $this->assertSame(
+            [DocumentStatus::Parsed, DocumentStatus::Chunked, DocumentStatus::Indexed, DocumentStatus::Failed],
+            array_values(array_filter(DocumentStatus::cases(), fn (DocumentStatus $s) => $s->canDelete())),
         );
     }
 

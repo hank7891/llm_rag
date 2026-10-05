@@ -4,6 +4,7 @@ namespace App\Documents\Chunking;
 
 use App\Documents\DocumentStatus;
 use App\Documents\Exceptions\StaleDocumentStatusException;
+use App\Jobs\IndexDocumentJob;
 use App\Models\Document;
 use App\Models\DocumentPage;
 use App\Repositories\DocumentChunkRepository;
@@ -11,7 +12,7 @@ use App\Repositories\DocumentPageRepository;
 use App\Repositories\DocumentRepository;
 
 /**
- * 切段一份文件：parsed / chunked → chunking → 切段 → 整批取代 Chunk → chunked。
+ * 切段一份文件：parsed / chunked / indexed → chunking → 切段 → 整批取代 Chunk → chunked → 派送 IndexDocumentJob。
  * 由 ChunkDocumentJob（解析完成後自動）或 rag:chunk 指令（實驗時重新切段）呼叫；可重複執行（冪等）。
  */
 class DocumentChunkingService
@@ -44,6 +45,9 @@ class DocumentChunkingService
         // 先寫 Chunk、再改狀態：改狀態前失敗時，重試會整批覆蓋，不會重複
         $this->chunks->replace($documentId, $drafts, $options->label());
         $this->documents->transition($document, DocumentStatus::Chunked);
+
+        // 切段完成後接著建索引（Ch07）：Chunk 換了，向量也必須跟著重建，否則搜尋到的是舊內容
+        IndexDocumentJob::dispatch($documentId);
 
         return $drafts;
     }

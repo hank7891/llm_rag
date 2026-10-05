@@ -28,4 +28,19 @@ return [
 
     ],
 
+    'qdrant' => [
+
+        'url' => env('QDRANT_URL', 'http://localhost:6333'),
+
+        // Collection 名稱 = 前綴 + "_" + Embedding 模型名稱（例如 company_docs_bge_m3）。
+        // 名稱一律由模型推導，不另設 Collection 名稱：模型和 Collection 只有一個來源，就不會「模型換了、Collection 忘了換」
+        'collection_prefix' => env('RAG_COLLECTION_PREFIX', 'company_docs'),
+
+        // 每次 upsert 的 Point 數
+        'upsert_batch_size' => 64,
+
+        'timeout' => 30,
+
+    ],
+
 ];

@@ -27,6 +27,11 @@ class DocumentRepository
         return Document::findOrFail($id);
     }
 
+    public function delete(Document $document): void
+    {
+        $document->delete();
+    }
+
     public function paginate(int $perPage = 20): LengthAwarePaginator
     {
         return Document::query()->latest('id')->paginate($perPage);

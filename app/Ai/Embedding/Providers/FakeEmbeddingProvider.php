@@ -34,6 +34,11 @@ class FakeEmbeddingProvider implements EmbeddingProviderInterface
         );
     }
 
+    public function defaultEmbeddingModel(): string
+    {
+        return self::MODEL;
+    }
+
     /** @return list<float> */
     private function vector(string $text): array
     {

@@ -14,6 +14,7 @@ use App\Documents\Parsing\PdfParser;
 use App\Documents\Parsing\TextNormalizer;
 use App\Documents\Qa\DocumentContextBuilder;
 use App\Documents\Qa\DocumentQaService;
+use App\Rag\VectorStore\ChunkPurger;
 use App\Repositories\DocumentPageRepository;
 use App\Repositories\DocumentRepository;
 use Illuminate\Support\ServiceProvider;
@@ -32,6 +33,7 @@ class DocumentServiceProvider extends ServiceProvider
 
         $this->app->bind(DocumentService::class, fn ($app) => new DocumentService(
             $app->make(DocumentRepository::class),
+            $app->make(ChunkPurger::class),
             $app['filesystem']->disk($app['config']->get('documents.disk')),
             $app['config']->get('documents.directory'),
         ));

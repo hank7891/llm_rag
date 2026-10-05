@@ -66,6 +66,12 @@ class EmbeddingService
         return $result;
     }
 
+    /** 某個 provider（未指定時為預設 provider）預設使用的模型，已標準化 */
+    public function defaultModel(?string $provider = null): string
+    {
+        return EmbeddingModels::canonical($this->provider($provider ?? $this->defaultProvider)->defaultEmbeddingModel());
+    }
+
     private function provider(string $name): EmbeddingProviderInterface
     {
         $class = $this->providers[$name]

@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Documents\DocumentService;
 use App\Documents\DocumentStatus;
+use App\Documents\Exceptions\DocumentBusyException;
 use App\Documents\Exceptions\InvalidStatusTransitionException;
 use App\Documents\Exceptions\StaleDocumentStatusException;
 use App\Http\Requests\UploadDocumentRequest;
 use App\Models\Document;
+use App\Rag\VectorStore\Exceptions\QdrantException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -25,7 +27,7 @@ class DocumentController extends Controller
             'duplicates' => $duplicates,
             // 有文件還在處理時，列表頁每幾秒自動重新整理，方便觀察狀態變化
             'autoRefresh' => $documents->getCollection()->contains(
-                fn (Document $d) => in_array($d->status_key, [DocumentStatus::Uploaded, DocumentStatus::Parsing, DocumentStatus::Chunking], true),
+                fn (Document $d) => in_array($d->status_key, [DocumentStatus::Uploaded, DocumentStatus::Parsing, DocumentStatus::Chunking, DocumentStatus::Indexing], true),
             ),
         ]);
     }
@@ -55,6 +57,19 @@ class DocumentController extends Controller
             'chunkCount' => $document->chunks()->count(),
             'maxTokens' => config('rag.chunking.max_tokens'),
         ]);
+    }
+
+    public function destroy(Document $document): RedirectResponse
+    {
+        try {
+            $this->documents->delete($document);
+        } catch (DocumentBusyException $e) {
+            return back()->with('error', $e->getMessage());
+        } catch (QdrantException $e) {
+            return back()->with('error', "向量索引刪除失敗，文件沒有被刪除，請稍後再試。（{$e->getMessage()}）");
+        }
+
+        return redirect()->route('documents.index')->with('success', "已刪除「{$document->name}」與它的向量索引。");
     }
 
     public function reprocess(Document $document): RedirectResponse

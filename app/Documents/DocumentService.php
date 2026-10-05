@@ -2,10 +2,13 @@
 
 namespace App\Documents;
 
+use App\Documents\Exceptions\DocumentBusyException;
 use App\Documents\Exceptions\InvalidStatusTransitionException;
 use App\Documents\Exceptions\StaleDocumentStatusException;
 use App\Jobs\ParseDocumentJob;
 use App\Models\Document;
+use App\Rag\VectorStore\ChunkPurger;
+use App\Rag\VectorStore\Exceptions\QdrantException;
 use App\Repositories\DocumentRepository;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -18,6 +21,7 @@ class DocumentService
 {
     public function __construct(
         private readonly DocumentRepository $documents,
+        private readonly ChunkPurger $purger,
         private readonly Filesystem $disk,
         private readonly string $directory,
     ) {}
@@ -53,6 +57,28 @@ class DocumentService
         $this->documents->transition($document, DocumentStatus::Uploaded, ['error_message' => null]);
 
         ParseDocumentJob::dispatch($document->id);
+    }
+
+    /**
+     * 刪除文件：先刪 Qdrant（所有模型的 Collection），成功後才刪 MySQL，最後刪上傳的檔案。
+     *
+     * MySQL 是來源、Qdrant 是衍生的索引：Qdrant 刪除失敗就中止，MySQL 資料還在，之後可以重試；
+     * 若先刪 MySQL 而 Qdrant 失敗，Qdrant 會留下找不到來源的孤兒 Points，搜尋時還會被找到。
+     *
+     * @throws DocumentBusyException 文件處理中
+     * @throws QdrantException Qdrant 刪除失敗（MySQL 不會被刪除）
+     */
+    public function delete(Document $document): void
+    {
+        if (! $document->status_key->canDelete()) {
+            throw DocumentBusyException::cannotDelete($document->name, $document->status_key);
+        }
+
+        $this->purger->purge($document->id);
+
+        // document_pages、document_chunks 以外鍵 cascade 一併刪除
+        $this->documents->delete($document);
+        $this->disk->delete($document->path);
     }
 
     /**

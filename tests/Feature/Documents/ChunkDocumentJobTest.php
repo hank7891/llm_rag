@@ -6,18 +6,28 @@ use App\Documents\Chunking\ChunkingService;
 use App\Documents\Chunking\DocumentChunkingService;
 use App\Documents\DocumentStatus;
 use App\Jobs\ChunkDocumentJob;
+use App\Jobs\IndexDocumentJob;
 use App\Models\Document;
 use App\Models\DocumentChunk;
 use App\Repositories\DocumentChunkRepository;
 use App\Repositories\DocumentPageRepository;
 use App\Repositories\DocumentRepository;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Queue;
 use RuntimeException;
 use Tests\TestCase;
 
 class ChunkDocumentJobTest extends TestCase
 {
     use DatabaseTransactions;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // 切段完成後會派送 IndexDocumentJob；測試環境的 Queue 是 sync，不攔下來會立刻接著呼叫 Qdrant
+        Queue::fake();
+    }
 
     /** 第 1 頁兩條規定，第六條跨到第 2 頁 */
     private function document(DocumentStatus $status = DocumentStatus::Parsed): Document
@@ -49,6 +59,24 @@ class ChunkDocumentJobTest extends TestCase
             [DocumentStatus::Chunked, ['第一章 總則 / 第一條 目的', '第一章 總則 / 第六條 資料保存', '第一章 總則 / 第七條 施行']],
             [$document->fresh()->status_key, $document->chunks()->pluck('section')->all()],
         );
+    }
+
+    public function test_index_job_is_dispatched_after_chunking(): void
+    {
+        $document = $this->document();
+
+        $this->handle($document);
+
+        Queue::assertPushed(IndexDocumentJob::class, fn (IndexDocumentJob $job) => $job->documentId === $document->id);
+    }
+
+    public function test_indexed_document_can_be_rechunked(): void
+    {
+        $document = $this->document(DocumentStatus::Indexed);
+
+        app(DocumentChunkingService::class)->chunk($document->id);
+
+        $this->assertSame(DocumentStatus::Chunked, $document->fresh()->status_key);
     }
 
     public function test_cross_page_article_records_page_range(): void

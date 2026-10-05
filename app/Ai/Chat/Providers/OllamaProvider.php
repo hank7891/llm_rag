@@ -48,7 +48,7 @@ class OllamaProvider implements ChatProviderInterface, EmbeddingProviderInterfac
      */
     public function embed(array $texts, EmbeddingOptions $options): EmbeddingResult
     {
-        $model = $options->model ?? $this->config['embedding_model'] ?? throw new LogicException('[ollama] No embedding model configured (OLLAMA_EMBED_MODEL).');
+        $model = $options->model ?? $this->defaultEmbeddingModel();
         $spec = $this->embeddingModels->spec($model);
         $prefix = $options->inputType === EmbeddingInputType::Query ? $spec['query_prefix'] : $spec['document_prefix'];
         // num_ctx / num_batch 決定單段輸入的上限（Ollama 預設約 2048）；是記憶體與餘裕的取捨，不必開到模型最大值
@@ -86,6 +86,11 @@ class OllamaProvider implements ChatProviderInterface, EmbeddingProviderInterfac
         }
 
         return new EmbeddingResult($vectors, $returnedModel, count($vectors[0] ?? []), $tokens);
+    }
+
+    public function defaultEmbeddingModel(): string
+    {
+        return $this->config['embedding_model'] ?? throw new LogicException('[ollama] No embedding model configured (OLLAMA_EMBED_MODEL).');
     }
 
     /**

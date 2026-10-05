@@ -47,7 +47,9 @@ enum DocumentStatus: string
             // chunked → chunking：調整切段參數後重新切段
             self::Chunked => [self::Chunking, self::Indexing, self::Uploaded],
             self::Indexing => [self::Indexed, self::Failed],
-            self::Indexed, self::Failed => [self::Uploaded],
+            // indexed → indexing：重建索引；indexed → chunking：重新切段（切完會自動重建索引）
+            self::Indexed => [self::Indexing, self::Chunking, self::Uploaded],
+            self::Failed => [self::Uploaded],
         };
     }
 
@@ -60,6 +62,14 @@ enum DocumentStatus: string
     public function hasPages(): bool
     {
         return in_array($this, [self::Parsed, self::Chunking, self::Chunked, self::Indexing, self::Indexed], true);
+    }
+
+    /**
+     * 可以刪除的狀態：處理中的文件不可刪除。否則 Job 可能在 Qdrant 清除之後才寫入 Points，留下孤兒。
+     */
+    public function canDelete(): bool
+    {
+        return in_array($this, [self::Parsed, self::Chunked, self::Indexed, self::Failed], true);
     }
 
     /** 可由使用者觸發重新處理的狀態 */

@@ -62,6 +62,14 @@
                                         <button class="text-slate-500 hover:text-slate-900">重新處理</button>
                                     </form>
                                 @endif
+                                @if ($document->status_key->canDelete())
+                                    <form method="POST" action="{{ route('documents.destroy', $document) }}" class="ml-3 inline"
+                                        onsubmit="return confirm('確定要刪除「{{ $document->name }}」？文件、切段與向量索引都會一併刪除。')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="text-rose-600 hover:text-rose-800">刪除</button>
+                                    </form>
+                                @endif
                             </td>
                         </tr>
                     @endforeach

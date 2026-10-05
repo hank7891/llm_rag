@@ -15,4 +15,7 @@ interface EmbeddingProviderInterface
 {
     /** @param list<string> $texts */
     public function embed(array $texts, EmbeddingOptions $options): EmbeddingResult;
+
+    /** EmbeddingOptions::$model 為 null 時使用的模型（Ch07：用來判斷「目前線上使用的 Collection」） */
+    public function defaultEmbeddingModel(): string;
 }
