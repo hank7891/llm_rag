@@ -34,7 +34,7 @@ class SearchChunksCommand extends Command
         if (! $result->hasCandidates()) {
             $this->warn($result->scoreThreshold === null
                 ? '沒有任何結果（Collection 是空的，或沒有這個模型的 Points）。'
-                : '無候選：沒有結果超過門檻（下一章會直接回答「資料不足」）。');
+                : sprintf('無候選：最高分 %.4f 未超過門檻（問答時直接回答「資料不足」）。', $result->topScore()));
 
             return self::SUCCESS;
         }

@@ -32,6 +32,7 @@ class RetrievalEvaluator
                 QuestionType::from($row['type']),
                 $row['question'],
                 array_map(fn (array $e) => new ExpectedSource($e['document'], $e['section']), $row['expected']),
+                $row['expected_answer'] ?? null,
             );
         }
 

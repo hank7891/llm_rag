@@ -49,7 +49,7 @@ class RetrieverTest extends TestCase
 
         $this->retrieve();
 
-        Http::assertSent(fn (Request $r) => $r['score_threshold'] === 0.5 && $r['limit'] === 7);
+        Http::assertSent(fn (Request $r) => ($r['score_threshold'] ?? null) === 0.5 && $r['limit'] === 7);
     }
 
     public function test_without_threshold_score_threshold_is_not_sent(): void
@@ -68,7 +68,7 @@ class RetrieverTest extends TestCase
 
         $this->retrieve(new RetrieveOptions(topK: 3, scoreThreshold: 0.62));
 
-        Http::assertSent(fn (Request $r) => $r['score_threshold'] === 0.62 && $r['limit'] === 3);
+        Http::assertSent(fn (Request $r) => ($r['score_threshold'] ?? null) === 0.62 && $r['limit'] === 3);
     }
 
     public function test_hits_are_mapped_to_retrieved_chunks(): void
@@ -86,6 +86,19 @@ class RetrieverTest extends TestCase
         $this->fakeQuery();
 
         $this->assertFalse($this->retrieve()->hasCandidates());
+    }
+
+    public function test_no_candidates_records_unfiltered_top_score_with_same_vector(): void
+    {
+        // 第一次（有門檻）沒有結果；第二次（不套門檻、取 1 筆）取得被擋掉的最高分
+        Http::fake([self::QUERY => fn (Request $r) => Http::response(['result' => ['points' => isset($r['score_threshold'])
+            ? [] : [['id' => 101, 'version' => 1, 'score' => 0.5498, 'payload' => self::PAYLOAD]]], 'status' => 'ok'])]);
+
+        $result = $this->retrieve();
+
+        $queries = Http::recorded()->map(fn ($pair) => [$pair[0]['limit'], isset($pair[0]['score_threshold'])])->values()->all();
+        $vectors = Http::recorded()->map(fn ($pair) => $pair[0]['query'])->unique()->count();
+        $this->assertSame([false, 0.5498, [[7, true], [1, false]], 1], [$result->hasCandidates(), $result->topScore(), $queries, $vectors]);
     }
 
     public function test_model_without_threshold_is_rejected_before_searching(): void

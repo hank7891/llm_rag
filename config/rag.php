@@ -46,6 +46,26 @@ return [
 
     ],
 
+    'answer' => [
+
+        // 送進 Context 的最多 Chunk 數。目前與 retrieval.top_k 相同；加入 Reranker 後會先取較多候選，再挑這個數量送給 LLM
+        'top_k' => (int) env('RAG_ANSWER_TOP_K', 5),
+
+        // 參考資料的總長度上限（字元數，近似 Token：中文 1 字約 0.7～1 Token）。
+        // qwen3 的 num_ctx 為 8192，扣掉 System Prompt、問題與回答的空間後取保守值；超過時從排名最後整段捨去
+        'context_budget_chars' => (int) env('RAG_ANSWER_CONTEXT_BUDGET_CHARS', 6000),
+
+        // 沒有候選時的固定回覆，也會帶入 System Prompt，要求 LLM 資料不足時用同一句話回答
+        'insufficient_message' => '資料不足',
+
+        // 未指定時使用 config/llm.php 的 chat.default
+        'default_provider' => env('RAG_ANSWER_PROVIDER'),
+
+        // 規則與資料分開：System Prompt 只放規則，參考資料放在 user 訊息
+        'system_prompt' => resource_path('prompts/rag-answer.md'),
+
+    ],
+
     'qdrant' => [
 
         'url' => env('QDRANT_URL', 'http://localhost:6333'),

@@ -26,8 +26,26 @@ class VectorSearcher
     public function search(string $query, int $limit = 5, ?string $model = null, ?float $scoreThreshold = null): array
     {
         $model = EmbeddingModels::canonical($model ?? $this->embedding->defaultModel());
-        $vector = $this->embedding->embed([$query], new EmbeddingOptions(EmbeddingInputType::Query, $model))->vectors[0];
 
+        return $this->searchVector($this->embedQuery($query, $model), $model, $limit, $scoreThreshold);
+    }
+
+    /**
+     * 以 query 產生問題向量。和 searchVector() 分開，讓同一個問題可以用同一個向量查詢多次。
+     *
+     * @return list<float>
+     */
+    public function embedQuery(string $query, string $model): array
+    {
+        return $this->embedding->embed([$query], new EmbeddingOptions(EmbeddingInputType::Query, $model))->vectors[0];
+    }
+
+    /**
+     * @param  list<float>  $vector  由 embedQuery() 以同一個模型產生
+     * @return list<SearchHit>
+     */
+    public function searchVector(array $vector, string $model, int $limit, ?float $scoreThreshold = null): array
+    {
         return array_map(
             fn (array $point) => new SearchHit($point['id'], $point['score'], $point['payload']),
             $this->qdrant->query($this->resolver->name($model), $vector, $limit, [

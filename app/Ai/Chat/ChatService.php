@@ -35,6 +35,12 @@ class ChatService
         private readonly LoggerInterface $logger,
     ) {}
 
+    /** 呼叫端未指定 provider 時使用的名稱 */
+    public function defaultProvider(): string
+    {
+        return $this->defaultProvider;
+    }
+
     /** @param list<Message> $messages */
     public function chat(array $messages, ?ChatOptions $options = null, ?string $provider = null): ChatResult
     {

@@ -27,6 +27,14 @@ class RetrieverService
         $topK = $options->topK ?? $this->topK;
         $threshold = $options->applyThreshold ? $options->scoreThreshold ?? $this->threshold($model) : null;
 
+        $vector = $this->searcher->embedQuery($query, $model);
+        $hits = $this->searcher->searchVector($vector, $model, $topK, $threshold);
+
+        // 沒有候選時 Qdrant 只回傳空陣列，看不到被擋掉的最高分；用同一個向量再取 1 筆（不套門檻），供紀錄與校準門檻
+        $unfilteredTopScore = $hits === [] && $threshold !== null
+            ? ($this->searcher->searchVector($vector, $model, 1)[0] ?? null)?->score
+            : null;
+
         $chunks = array_map(fn (SearchHit $hit) => new RetrievedChunk(
             (int) $hit->id,
             $hit->payload['document_id'],
@@ -36,9 +44,9 @@ class RetrieverService
             $hit->payload['page_end'],
             $hit->payload['content'],
             $hit->score,
-        ), $this->searcher->search($query, $topK, $model, $threshold));
+        ), $hits);
 
-        return new RetrievalResult($chunks, $model, $topK, $threshold);
+        return new RetrievalResult($chunks, $model, $topK, $threshold, $unfilteredTopScore);
     }
 
     /** 設定檔中該模型的門檻；沒有設定時為 null */
