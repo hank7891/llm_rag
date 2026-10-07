@@ -61,8 +61,27 @@ return [
         // 未指定時使用 config/llm.php 的 chat.default
         'default_provider' => env('RAG_ANSWER_PROVIDER'),
 
-        // 規則與資料分開：System Prompt 只放規則，參考資料放在 user 訊息
-        'system_prompt' => resource_path('prompts/rag-answer.md'),
+        // 規則與資料分開：System Prompt 只放規則，參考資料放在 user 訊息。
+        // 實驗時可用環境變數指定其他版本（resources/ 下的相對路徑），例如 Ch10 比較的 prompts/rag-answer-v1.md
+        'system_prompt' => resource_path(env('RAG_ANSWER_SYSTEM_PROMPT', 'prompts/rag-answer.md')),
+
+    ],
+
+    'citation' => [
+
+        // 來源的顯示格式。section 為空時省略條號
+        'label_format' => '{document}　{section}　{pages}',
+
+        'page_format' => [
+            'single' => '第 {start} 頁',
+            'range' => '第 {start}–{end} 頁',
+        ],
+
+        // 同檔、同條、同頁的多個編號合併成一行：[3][4] 員工差勤管理規章.pdf　第二章 請假 / 第四條　第 2 頁
+        'merge_same_source' => true,
+
+        // 從回答中移除不合規的標記（超出範圍、非數字、來源不存在）；false 時只記錄、不改寫回答
+        'strip_invalid' => true,
 
     ],
 

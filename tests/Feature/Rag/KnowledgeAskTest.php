@@ -5,10 +5,10 @@ namespace Tests\Feature\Rag;
 use App\Models\RagQueryLog;
 use App\Rag\Answer\QuerySource;
 use App\Rag\Retrieval\RetrievalResult;
-use App\Rag\Retrieval\RetrievedChunk;
 use App\Rag\Retrieval\RetrieverService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Mockery\MockInterface;
+use Tests\Support\SeedsRetrievedChunks;
 use Tests\TestCase;
 
 /**
@@ -17,20 +17,25 @@ use Tests\TestCase;
 class KnowledgeAskTest extends TestCase
 {
     use DatabaseTransactions;
+    use SeedsRetrievedChunks;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $chunk = new RetrievedChunk(101, 4, '員工管理辦法.pdf', '第十二條', 2, 2, '第十二條 特別休假', 0.6651);
-        $this->mock(RetrieverService::class, fn (MockInterface $mock) => $mock->shouldReceive('retrieve')->andReturn(new RetrievalResult([$chunk], 'fake', 5, 0.59)));
+        $chunks = $this->seedChunks([['第十二條 特別休假', '第十二條', 0.6651]]);
+        $this->mock(RetrieverService::class, fn (MockInterface $mock) => $mock->shouldReceive('retrieve')->andReturn(new RetrievalResult($chunks, 'fake', 5, 0.59)));
     }
 
     public function test_api_returns_rag_answer(): void
     {
         $this->postJson('/api/knowledge/ask', ['question' => '我的特休沒休完怎麼辦？', 'provider' => 'fake'])
             ->assertOk()
-            ->assertJson(['status' => 'answered', 'llm_called' => true, 'provider' => 'fake', 'references' => [['number' => 1, 'chunk_id' => 101, 'section' => '第十二條']], 'dropped_chunks' => 0]);
+            ->assertJson(['status' => 'answered', 'llm_called' => true, 'provider' => 'fake', 'references' => [['number' => 1, 'section' => '第十二條']], 'dropped_chunks' => 0,
+                // FakeChatProvider 回顯 user 訊息，其中含有「[1] 第十二條…」，因此會被解析成引用 [1]
+                'citations' => [['ref' => 1, 'label' => '員工管理辦法.pdf　第十二條　第 2 頁', 'section' => '第十二條']],
+                'sources' => ['[1] 員工管理辦法.pdf　第十二條　第 2 頁'],
+                'warnings' => ['invalid_refs' => [], 'uncited' => false]]);
     }
 
     public function test_api_logs_query_as_api_source(): void

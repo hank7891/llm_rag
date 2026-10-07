@@ -15,6 +15,9 @@ use Illuminate\Database\Eloquent\Model;
  * @property AnswerStatus $status_key
  * @property QuerySource $source_key
  * @property bool $llm_called
+ * @property int $citation_count
+ * @property int $invalid_ref_count
+ * @property bool $uncited
  * @property string $embedding_model
  * @property string $provider
  * @property string|null $model
@@ -29,7 +32,7 @@ class RagQueryLog extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'question', 'top1_score', 'score_threshold', 'passed_count', 'status_key', 'source_key', 'llm_called', 'embedding_model',
+        'question', 'top1_score', 'score_threshold', 'passed_count', 'status_key', 'source_key', 'llm_called', 'citation_count', 'invalid_ref_count', 'uncited', 'embedding_model',
         'provider', 'model', 'input_tokens', 'output_tokens', 'retrieval_ms', 'llm_ms', 'created_at',
     ];
 
@@ -42,6 +45,9 @@ class RagQueryLog extends Model
             'status_key' => AnswerStatus::class,
             'source_key' => QuerySource::class,
             'llm_called' => 'boolean',
+            'citation_count' => 'integer',
+            'invalid_ref_count' => 'integer',
+            'uncited' => 'boolean',
             'input_tokens' => 'integer',
             'output_tokens' => 'integer',
             'retrieval_ms' => 'integer',

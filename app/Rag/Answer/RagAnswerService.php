@@ -5,6 +5,8 @@ namespace App\Rag\Answer;
 use App\Ai\Chat\ChatService;
 use App\Ai\Chat\DTO\Message;
 use App\Ai\Chat\DTO\Role;
+use App\Rag\Citation\CitationFormatter;
+use App\Rag\Citation\CitationResolver;
 use App\Rag\Retrieval\RetrieveOptions;
 use App\Rag\Retrieval\RetrieverService;
 use App\Repositories\RagQueryLogRepository;
@@ -28,6 +30,8 @@ class RagAnswerService
         private readonly ?string $defaultProvider,
         private readonly RagQueryLogRepository $logs,
         private readonly LoggerInterface $logger,
+        private readonly CitationResolver $citations,
+        private readonly CitationFormatter $formatter,
     ) {}
 
     public function answer(string $question, AnswerOptions $options = new AnswerOptions): RagAnswer
@@ -59,12 +63,15 @@ class RagAnswerService
 
         $startedAt = hrtime(true);
         $result = $this->chat->chat($messages, provider: $provider);
+        $llmMs = $this->elapsedMs($startedAt);
+
+        $status = $this->isInsufficient($result->content) ? AnswerStatus::InsufficientByLlm : AnswerStatus::Answered;
+        // 來源一律由程式依編號對照表與 MySQL 產生；資料不足的回答不顯示來源
+        $cited = $this->citations->resolve($result->content, $context->references, $status->isInsufficient());
 
         return new RagAnswer(
-            $result->content,
-            // 啟發式判斷：回答含有固定訊息就視為 LLM 判斷資料不足。
-            // 限制：「部分資料不足」的回答（例如答了一半、另一半資料不足）也會被歸到這裡；模型換句話說（「文件未提及」）則判斷不到
-            str_contains($result->content, $this->insufficientMessage) ? AnswerStatus::InsufficientByLlm : AnswerStatus::Answered,
+            $cited->answer,
+            $status,
             true,
             $context->references,
             $context->droppedChunks,
@@ -72,11 +79,29 @@ class RagAnswerService
             $result->model,
             $result->usage,
             $retrievalMs,
-            $this->elapsedMs($startedAt),
+            $llmMs,
             $retrieval,
             $messages,
             $result->finishReason,
+            $result->content,
+            $cited->citations,
+            $this->formatter->lines($cited->citations),
+            $cited->invalidRefs,
+            $cited->uncited,
+            collect($cited->citations)->mapWithKeys(fn ($c) => [$c->ref => $this->formatter->label($c)])->all(),
         );
+    }
+
+    /**
+     * 啟發式判斷：回答（去掉引用標記與開頭標點）以固定訊息開頭，視為 LLM 判斷資料不足。
+     * Ch09 用「含有」判斷，會把「先回答一部分、最後說另一部分資料不足」的回答誤判為不足，連帶清掉合法的來源；
+     * 改為「開頭」後這類回答維持 answered。限制：換句話說的拒答（「無法回答」「並未提及」）仍判斷不到。
+     */
+    private function isInsufficient(string $content): bool
+    {
+        $text = preg_replace('/[\[［][^\]］\n]{1,20}[\]］]/u', '', $content);
+
+        return str_starts_with(preg_replace('/^[\s「『*#\x{3000}]+/u', '', $text), $this->insufficientMessage);
     }
 
     /** 紀錄只是輔助資料：寫入失敗（例如資料庫中斷）不影響回答，只留下 log */

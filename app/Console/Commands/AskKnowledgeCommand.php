@@ -42,8 +42,25 @@ class AskKnowledgeCommand extends Command
 
         $this->info('── 回答 ──');
         $this->line($answer->answer);
+
+        if ($answer->sources !== []) {
+            $this->newLine();
+            $this->info('── 資料來源 ──');
+            foreach ($answer->sources as $line) {
+                $this->line($line);
+            }
+        }
+
+        if ($this->option('show-context') && $answer->llmCalled) {
+            $this->newLine();
+            $this->info('── LLM 原始回答 ──');
+            $this->line($answer->rawAnswer);
+            $this->info('── 被移除的引用標記 ──');
+            $this->line($answer->invalidRefs === [] ? '無' : implode('、', array_map(fn ($r) => "{$r->raw}（{$r->reason->value}）", $answer->invalidRefs)));
+        }
+
         $this->newLine();
-        $this->line(sprintf('status：%s　llm_called：%s　參考資料：%d 段（捨去 %d 段）', $answer->status->value, $answer->llmCalled ? 'true' : 'false', count($answer->references), $answer->droppedChunks));
+        $this->line(sprintf('status：%s　llm_called：%s　參考資料：%d 段（捨去 %d 段）　引用：%d　不合規標記：%d　uncited：%s', $answer->status->value, $answer->llmCalled ? 'true' : 'false', count($answer->references), $answer->droppedChunks, count($answer->citations), count($answer->invalidRefs), $answer->uncited ? 'true' : 'false'));
         $this->line(sprintf(
             'Provider：%s　模型：%s　Token：輸入 %s／輸出 %s　耗時：檢索 %d ms、LLM %s',
             $answer->provider,

@@ -20,6 +20,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Log;
 use Mockery\MockInterface;
 use RuntimeException;
+use Tests\Support\SeedsRetrievedChunks;
 use Tests\TestCase;
 
 /**
@@ -28,6 +29,7 @@ use Tests\TestCase;
 class RagAnswerTest extends TestCase
 {
     use DatabaseTransactions;
+    use SeedsRetrievedChunks;
 
     private FakeChatProvider $fakeChat;
 
@@ -150,12 +152,62 @@ class RagAnswerTest extends TestCase
         $this->assertSame(AnswerStatus::InsufficientByLlm, $this->answer('停車場收費標準是什麼？')->status);
     }
 
+    private function replying(string $reply): void
+    {
+        $this->app->instance(FakeChatProvider::class, new class($reply) extends FakeChatProvider
+        {
+            public function __construct(private readonly string $fixed) {}
+
+            protected function reply(array $messages): string
+            {
+                return $this->fixed;
+            }
+        });
+    }
+
+    // ---- 引用（Ch10） ----
+
+    public function test_pure_insufficient_reply_has_no_citations(): void
+    {
+        $this->replying('資料不足 [1]。');
+        $this->fakeRetriever($this->seedChunks([['停車場無關內容', null, 0.6]]));
+
+        $answer = $this->answer('停車場收費標準是什麼？');
+
+        $this->assertSame([AnswerStatus::InsufficientByLlm, '資料不足。', [], false], [$answer->status, $answer->answer, $answer->citations, $answer->uncited]);
+    }
+
+    public function test_partial_answer_ending_with_insufficient_keeps_valid_citations(): void
+    {
+        // Ch09 的 r08：先回答一部分，最後才說另一部分資料不足。以「含有」判斷會被歸為資料不足並清掉來源
+        $this->replying('未休之日數雇主應發給工資 [1]。至於年終獎金，資料不足 [資料不足]。');
+        $this->fakeRetriever($this->seedChunks([['第十二條 特別休假', '第十二條', 0.66]]));
+
+        $answer = $this->answer('特休沒休完怎麼處理？會影響年終獎金嗎？');
+
+        $this->assertSame(
+            [AnswerStatus::Answered, '未休之日數雇主應發給工資 [1]。至於年終獎金，資料不足。', [1], ['[1] 員工管理辦法.pdf　第十二條　第 2 頁']],
+            [$answer->status, $answer->answer, array_map(fn ($c) => $c->ref, $answer->citations), $answer->sources],
+        );
+    }
+
+    public function test_answer_without_valid_citation_is_flagged_and_logged(): void
+    {
+        $this->replying('雇主應發給工資 [7]。');
+        $this->fakeRetriever($this->seedChunks([['第十二條 特別休假', '第十二條', 0.66]]));
+
+        $answer = $this->answer();
+
+        $log = RagQueryLog::sole();
+        $this->assertSame([true, '雇主應發給工資。', 0, 1, true], [$answer->uncited, $answer->answer, $log->citation_count, $log->invalid_ref_count, $log->uncited]);
+    }
+
     public function test_api_array_uses_snake_case_and_omits_messages(): void
     {
         $this->fakeRetriever([]);
 
         $this->assertSame(
-            ['answer', 'status', 'llm_called', 'references', 'dropped_chunks', 'provider', 'model', 'finish_reason', 'usage', 'timing'],
+            ['answer', 'status', 'citations', 'sources', 'warnings', 'llm_called', 'references', 'dropped_chunks', 'provider', 'model', 'finish_reason', 'usage', 'timing'],
             array_keys($this->answer()->toArray()),
         );
     }

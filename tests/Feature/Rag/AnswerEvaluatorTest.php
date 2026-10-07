@@ -12,11 +12,11 @@ use App\Rag\Evaluation\ExpectedSource;
 use App\Rag\Evaluation\QuestionType;
 use App\Rag\Evaluation\TestQuestion;
 use App\Rag\Retrieval\RetrievalResult;
-use App\Rag\Retrieval\RetrievedChunk;
 use App\Rag\Retrieval\RetrieverService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\File;
 use Mockery\MockInterface;
+use Tests\Support\SeedsRetrievedChunks;
 use Tests\TestCase;
 
 /**
@@ -25,6 +25,7 @@ use Tests\TestCase;
 class AnswerEvaluatorTest extends TestCase
 {
     use DatabaseTransactions;
+    use SeedsRetrievedChunks;
 
     private string $reply = '依規定發給工資 [2]，並可遞延 [1][2]。';
 
@@ -34,9 +35,9 @@ class AnswerEvaluatorTest extends TestCase
     {
         parent::setUp();
 
-        $chunk = new RetrievedChunk(101, 4, '員工管理辦法.pdf', '第十二條', 2, 2, '第十二條 特別休假', 0.6651);
+        $chunks = $this->seedChunks([['第十二條 特別休假', '第十二條', 0.6651], ['第四條 特別休假', '第四條', 0.6358]]);
         $this->mock(RetrieverService::class, fn (MockInterface $mock) => $mock->shouldReceive('retrieve')->andReturnUsing(
-            fn (string $query) => new RetrievalResult(str_contains($query, '宿舍') ? [] : [$chunk], 'fake', 5, 0.59, 0.5284),
+            fn (string $query) => new RetrievalResult(str_contains($query, '宿舍') ? [] : $chunks, 'fake', 5, 0.59, 0.5284),
         ));
 
         $test = $this;
@@ -70,9 +71,24 @@ class AnswerEvaluatorTest extends TestCase
         return new TestQuestion('q08', QuestionType::Paraphrase, $question, [new ExpectedSource('員工管理辦法.pdf', '第十二條')]);
     }
 
-    public function test_citations_are_unique_in_order_of_appearance(): void
+    public function test_citations_are_legal_references_unique_and_sorted(): void
     {
-        $this->assertSame([2, 1], $this->evaluate(self::answerable())->citations);
+        $this->assertSame([1, 2], $this->evaluate(self::answerable())->citations);
+    }
+
+    public function test_citation_hit_when_cited_source_is_expected(): void
+    {
+        $this->reply = '依規定發給工資 [1]。';
+
+        $this->assertTrue($this->evaluate(self::answerable())->citationHit());
+    }
+
+    public function test_citation_miss_when_only_other_source_is_cited(): void
+    {
+        // 預期段落是第十二條，只引用了 [2]（第四條）
+        $this->reply = '依規定發給工資 [2]。';
+
+        $this->assertFalse($this->evaluate(self::answerable())->citationHit());
     }
 
     public function test_answerable_question_with_citation_passes(): void
@@ -147,10 +163,14 @@ class AnswerEvaluatorTest extends TestCase
 
         $report = File::get("{$dir}/ch09-answers-fake.md");
         File::deleteDirectory($dir);
-        $this->assertSame([true, true, true], [
+        $this->assertSame([true, true, true, true, true, true, true], [
             str_contains($report, '| 無答案題回答資料不足 | 1 / 1 |'),
             str_contains($report, '| 有答案題：未答資料不足且標示 [n] | 1 / 1 |'),
-            str_contains($report, '| q25 | 無答案 | 公司有提供員工宿舍嗎？ | insufficient_no_candidates | 否 | 0.5284 | 資料不足 | — | ✓ | — | — | — |  |'),
+            str_contains($report, '| 引用率（已回答題中至少一個合法引用） | 1 / 1 |'),
+            str_contains($report, '| 命中率（已回答題中引用到預期段落） | 1 / 1 |'),
+            str_contains($report, '| 平均引用數（已回答題） | 2.00 |'),
+            str_contains($report, '| 無答案題未顯示來源 | 1 / 1 |'),
+            str_contains($report, '| q25 | 無答案 | 公司有提供員工宿舍嗎？ | insufficient_no_candidates | 否 | 0.5284 | 資料不足 | — | — | — | ✓ | — | — | — |  |'),
         ]);
     }
 

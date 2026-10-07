@@ -5,16 +5,23 @@ namespace App\Rag\Answer;
 use App\Ai\Chat\DTO\FinishReason;
 use App\Ai\Chat\DTO\Message;
 use App\Ai\Chat\DTO\Usage;
+use App\Rag\Citation\Citation;
+use App\Rag\Citation\InvalidRef;
 use App\Rag\Retrieval\RetrievalResult;
 
 /**
  * 一次 RAG 問答的結果。沒有呼叫 LLM 時 model、usage、llmMs、finishReason 為 null，messages 為空。
+ * answer 是移除不合規引用標記後的回答；rawAnswer 是 LLM 的原始輸出（除錯用）。
  */
 final readonly class RagAnswer
 {
     /**
      * @param  list<Reference>  $references  編號對照表（Ch10 依此顯示來源）
      * @param  list<Message>  $messages  實際送給 LLM 的訊息（除錯用，不放進 API 回應）
+     * @param  list<Citation>  $citations  實際被引用、且 MySQL 查得到的來源（依編號排序）
+     * @param  list<string>  $sources  來源的顯示文字（同來源合併）
+     * @param  list<InvalidRef>  $invalidRefs  被移除的引用標記
+     * @param  array<int, string>  $labels  編號 → 來源顯示文字
      */
     public function __construct(
         public string $answer,
@@ -30,6 +37,12 @@ final readonly class RagAnswer
         public RetrievalResult $retrieval,
         public array $messages = [],
         public ?FinishReason $finishReason = null,
+        public ?string $rawAnswer = null,
+        public array $citations = [],
+        public array $sources = [],
+        public array $invalidRefs = [],
+        public bool $uncited = false,
+        public array $labels = [],
     ) {}
 
     /** @return array<string, mixed> */
@@ -38,6 +51,22 @@ final readonly class RagAnswer
         return [
             'answer' => $this->answer,
             'status' => $this->status->value,
+            'citations' => array_map(fn (Citation $c) => [
+                'ref' => $c->ref,
+                'label' => $this->labels[$c->ref] ?? null,
+                'document_id' => $c->documentId,
+                'document_name' => $c->documentName,
+                'chunk_id' => $c->chunkId,
+                'section' => $c->section,
+                'page_start' => $c->pageStart,
+                'page_end' => $c->pageEnd,
+                'score' => $c->score,
+            ], $this->citations),
+            'sources' => $this->sources,
+            'warnings' => [
+                'invalid_refs' => array_map(fn (InvalidRef $r) => ['raw' => $r->raw, 'reason' => $r->reason->value, 'ref' => $r->ref], $this->invalidRefs),
+                'uncited' => $this->uncited,
+            ],
             'llm_called' => $this->llmCalled,
             'references' => array_map(fn (Reference $r) => [
                 'number' => $r->number,

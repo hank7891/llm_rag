@@ -6,6 +6,9 @@ use App\Ai\Chat\ChatService;
 use App\Ai\Embedding\EmbeddingService;
 use App\Rag\Answer\RagAnswerService;
 use App\Rag\Answer\ReferenceContextBuilder;
+use App\Rag\Citation\CitationFormatter;
+use App\Rag\Citation\CitationParser;
+use App\Rag\Citation\CitationResolver;
 use App\Rag\Retrieval\RetrieverService;
 use App\Rag\VectorStore\ChunkIndexer;
 use App\Rag\VectorStore\CollectionManager;
@@ -17,7 +20,7 @@ use App\Repositories\RagQueryLogRepository;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * 向量資料庫、檢索與問答元件的組裝處：讀取 config/rag.php 的 qdrant、retrieval、answer 區塊。
+ * 向量資料庫、檢索、問答與引用元件的組裝處：讀取 config/rag.php 的 qdrant、retrieval、answer、citation 區塊。
  */
 class RagServiceProvider extends ServiceProvider
 {
@@ -46,6 +49,19 @@ class RagServiceProvider extends ServiceProvider
             $app['config']->get('rag.retrieval.score_thresholds'),
         ));
 
+        $this->app->bind(CitationResolver::class, fn ($app) => new CitationResolver(
+            $app->make(CitationParser::class),
+            $app->make(DocumentChunkRepository::class),
+            $app['log'],
+            $app['config']->get('rag.citation.strip_invalid'),
+        ));
+
+        $this->app->bind(CitationFormatter::class, fn ($app) => new CitationFormatter(
+            $app['config']->get('rag.citation.label_format'),
+            $app['config']->get('rag.citation.page_format'),
+            $app['config']->get('rag.citation.merge_same_source'),
+        ));
+
         $this->app->bind(RagAnswerService::class, function ($app) {
             $config = $app['config']->get('rag.answer');
 
@@ -61,6 +77,8 @@ class RagServiceProvider extends ServiceProvider
                 $config['default_provider'],
                 $app->make(RagQueryLogRepository::class),
                 $app['log'],
+                $app->make(CitationResolver::class),
+                $app->make(CitationFormatter::class),
             );
         });
     }

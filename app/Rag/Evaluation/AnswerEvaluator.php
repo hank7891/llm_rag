@@ -28,9 +28,7 @@ class AnswerEvaluator
                 return new AnswerResult($question, null, [], $e::class.'：'.$e->getMessage());
             }
 
-            preg_match_all('/\[(\d+)\]/', $answer->answer, $matches);
-
-            return new AnswerResult($question, $answer, array_values(array_unique(array_map('intval', $matches[1]))));
+            return new AnswerResult($question, $answer, array_map(fn ($citation) => $citation->ref, $answer->citations));
         }, $questions);
     }
 }

@@ -2,7 +2,9 @@
 
 namespace App\Rag\Evaluation;
 
+use App\Rag\Answer\AnswerStatus;
 use App\Rag\Answer\RagAnswer;
+use App\Rag\Citation\Citation;
 
 /**
  * 一題端到端問答的結果與自動檢查。答案是否正確由使用者人工判讀，不在這裡判斷。
@@ -10,7 +12,7 @@ use App\Rag\Answer\RagAnswer;
  */
 final readonly class AnswerResult
 {
-    /** @param list<int> $citations 回答中出現的 [n] 編號（依出現順序、不重複） */
+    /** @param list<int> $citations 合法引用的編號（MySQL 查得到的來源，依編號排序） */
     public function __construct(
         public TestQuestion $question,
         public ?RagAnswer $answer,
@@ -23,6 +25,20 @@ final readonly class AnswerResult
      * 部分有答案：有呼叫 LLM 且標示 [n]（回答了哪一部分、資料不足的部分是否講明，只能人工判讀）。
      * 其他有答案題：不能回答資料不足，且至少標示一個 [n]。
      */
+    /**
+     * 引用命中（Citation Hit）：已回答的題目中，被引用的來源至少一個屬於預期段落。
+     * 不是已回答、或測試集沒有預期段落時為 null。命中只代表「引用到對的段落」，不代表該句話真的有依據。
+     */
+    public function citationHit(): ?bool
+    {
+        if ($this->answer?->status !== AnswerStatus::Answered || $this->question->expected === []) {
+            return null;
+        }
+
+        return collect($this->answer->citations)->contains(fn (Citation $c) => collect($this->question->expected)
+            ->contains(fn (ExpectedSource $e) => $e->matchesSource($c->documentName, $c->section)));
+    }
+
     public function passed(): bool
     {
         if ($this->answer === null) {

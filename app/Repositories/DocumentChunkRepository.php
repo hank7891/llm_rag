@@ -16,6 +16,17 @@ class DocumentChunkRepository
     }
 
     /**
+     * 依 id 查詢 Chunk 與所屬文件（Citation 顯示來源用）。查不到的 id 不會出現在結果中。
+     *
+     * @param  list<int>  $ids
+     * @return Collection<int, DocumentChunk> 以 id 為鍵
+     */
+    public function findWithDocuments(array $ids): Collection
+    {
+        return DocumentChunk::with('document')->whereKey($ids)->get()->keyBy('id');
+    }
+
+    /**
      * 以新 Chunk 整批取代舊 Chunk。刪除與寫入在同一個 Transaction：重新切段不會產生重複（冪等），
      * 中途失敗也不會留下一半的 Chunk。unique(document_id, chunk_index) 是最後一道防線。
      *

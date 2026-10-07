@@ -3,6 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Ai\Chat\DTO\FinishReason;
+use App\Rag\Answer\AnswerStatus;
+use App\Rag\Citation\InvalidReason;
+use App\Rag\Citation\InvalidRef;
 use App\Rag\Evaluation\AnswerEvaluator;
 use App\Rag\Evaluation\AnswerResult;
 use App\Rag\Evaluation\QuestionType;
@@ -19,7 +22,8 @@ class EvaluateAnswersCommand extends Command
         {--provider= : Chat Provider，未填使用預設值}
         {--set=tests/rag-set/questions.jsonl : 測試集}
         {--output-dir=docs/notes : 結果的存放目錄}
-        {--label= : 加在檔名後面，區分同一個 Provider 的不同設定（例如 reasoning-think）}';
+        {--label= : 加在檔名後面，區分同一個 Provider 的不同設定（例如 reasoning-think）}
+        {--prefix=ch09-answers : 檔名前綴}';
 
     protected $description = '以測試集逐題執行 RAG 問答，自動檢查資料不足判斷與 [n] 標示，答案正確性留給人工判讀';
 
@@ -37,7 +41,7 @@ class EvaluateAnswersCommand extends Command
         $this->table(['項目', '結果'], $summary);
 
         $label = $this->option('label') === null ? '' : '-'.$this->option('label');
-        $path = $this->path($this->option('output-dir'))."/ch09-answers-{$provider}{$label}.md";
+        $path = $this->path($this->option('output-dir'))."/{$this->option('prefix')}-{$provider}{$label}.md";
         File::ensureDirectoryExists(dirname($path));
         File::put($path, $this->markdown($provider, $results, $summary));
         $this->line("結果已寫入 {$path}");
@@ -72,18 +76,33 @@ class EvaluateAnswersCommand extends Command
             ['輸出被截斷（finish_reason = length）', (string) $count($called, fn (AnswerResult $r) => $r->answer->finishReason === FinishReason::Length)],
             ['呼叫失敗（逾時等，未重試）', (string) $count($results, fn (AnswerResult $r) => $r->error !== null)],
             ['呼叫 LLM 的題數', count($called).' / '.count($results)],
-            ['[n] 標示率（呼叫 LLM 且未答資料不足）', $this->citationRate($called)],
+            ...$this->citationRows($results),
             ['平均輸入 / 輸出 Token（呼叫 LLM 的題目）', $avg($called, fn (AnswerResult $r) => $r->answer->usage->inputTokens).' / '.$avg($called, fn (AnswerResult $r) => $r->answer->usage->outputTokens)],
             ['平均耗時：檢索 / LLM（ms）', $avg($answered, fn (AnswerResult $r) => $r->answer->retrievalMs).' / '.$avg($called, fn (AnswerResult $r) => $r->answer->llmMs)],
         ];
     }
 
-    /** @param array<AnswerResult> $called */
-    private function citationRate(array $called): string
+    /**
+     * Ch10 的引用指標。「已回答」指 status 為 answered 的題目。
+     *
+     * @param  list<AnswerResult>  $results
+     * @return list<array{string, string}>
+     */
+    private function citationRows(array $results): array
     {
-        $answered = array_filter($called, fn (AnswerResult $r) => ! $r->answer->status->isInsufficient());
+        $answered = array_filter($results, fn (AnswerResult $r) => $r->answer?->status === AnswerStatus::Answered);
+        $hits = array_filter($answered, fn (AnswerResult $r) => $r->citationHit() !== null);
+        $noAnswer = array_filter($results, fn (AnswerResult $r) => $r->question->type === QuestionType::NoAnswer && $r->answer !== null);
+        $invalid = collect($results)->flatMap(fn (AnswerResult $r) => $r->answer->invalidRefs ?? [])->countBy(fn (InvalidRef $i) => $i->reason->value);
+        $ratio = fn (int $n, array $of) => $of === [] ? '—' : "{$n} / ".count($of);
 
-        return $answered === [] ? '—' : sprintf('%d / %d', count(array_filter($answered, fn (AnswerResult $r) => $r->citations !== [])), count($answered));
+        return [
+            ['引用率（已回答題中至少一個合法引用）', $ratio(count(array_filter($answered, fn (AnswerResult $r) => $r->citations !== [])), $answered)],
+            ['命中率（已回答題中引用到預期段落）', $ratio(count(array_filter($hits, fn (AnswerResult $r) => $r->citationHit())), $hits)],
+            ['平均引用數（已回答題）', $answered === [] ? '—' : sprintf('%.2f', array_sum(array_map(fn (AnswerResult $r) => count($r->citations), $answered)) / count($answered))],
+            ['不合規標記：'.implode(' / ', array_map(fn (InvalidReason $r) => $r->value, InvalidReason::cases())), implode(' / ', array_map(fn (InvalidReason $r) => $invalid->get($r->value, 0), InvalidReason::cases()))],
+            ['無答案題未顯示來源', $ratio(count(array_filter($noAnswer, fn (AnswerResult $r) => $r->answer->citations === [])), $noAnswer)],
+        ];
     }
 
     /**
@@ -114,8 +133,8 @@ class EvaluateAnswersCommand extends Command
             '',
             '## 每題結果',
             '',
-            '| id | 題型 | 問題 |'.($withExpected ? ' 預期答案與判讀標準 |' : '').' status | LLM | Top-1 | 回答 | [n] | 自動檢查 | Token（入/出） | 結束原因 | LLM ms | 人工判讀 |',
-            '|'.str_repeat(' --- |', $withExpected ? 14 : 13),
+            '| id | 題型 | 問題 |'.($withExpected ? ' 預期答案與判讀標準 |' : '').' status | LLM | Top-1 | 回答 | [n] | 命中 | 不合規標記 | 自動檢查 | Token（入/出） | 結束原因 | LLM ms | 人工判讀 |',
+            '|'.str_repeat(' --- |', $withExpected ? 16 : 15),
         ];
 
         foreach ($results as $r) {
@@ -130,6 +149,12 @@ class EvaluateAnswersCommand extends Command
                 $a?->retrieval->topScore() === null ? '—' : sprintf('%.4f', $a->retrieval->topScore()),
                 $cell($a?->answer ?? "（{$r->error}）"),
                 $r->citations === [] ? '—' : implode(',', $r->citations),
+                match ($r->citationHit()) {
+                    null => '—',
+                    true => '✓',
+                    false => '✗',
+                },
+                $a === null || $a->invalidRefs === [] ? '—' : $cell(implode(' ', array_map(fn (InvalidRef $i) => "{$i->raw}（{$i->reason->value}）", $a->invalidRefs))),
                 $r->passed() ? '✓' : '✗',
                 $a?->usage === null ? '—' : "{$a->usage->inputTokens}/{$a->usage->outputTokens}",
                 $a?->finishReason->value ?? '—',

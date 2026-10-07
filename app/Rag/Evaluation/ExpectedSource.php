@@ -21,11 +21,17 @@ final readonly class ExpectedSource
      */
     public function matches(RetrievedChunk $chunk): bool
     {
-        if ($chunk->documentName !== $this->document) {
+        return $this->matchesSource($chunk->documentName, $chunk->section);
+    }
+
+    /** 依文件名稱與 section 比對（Ch10 的 Citation 命中率也用這個規則） */
+    public function matchesSource(string $documentName, ?string $section): bool
+    {
+        if ($documentName !== $this->document) {
             return false;
         }
 
         return $this->section === null
-            || ($chunk->section !== null && last(explode(' / ', $chunk->section)) === $this->section);
+            || ($section !== null && last(explode(' / ', $section)) === $this->section);
     }
 }
