@@ -13,5 +13,7 @@ final readonly class RetrieveOptions
         public ?int $topK = null,
         public ?float $scoreThreshold = null,
         public bool $applyThreshold = true,
+        public ?RetrievalMode $mode = null,
+        public ?KeywordOnlyPolicy $keywordOnlyPolicy = null,
     ) {}
 }

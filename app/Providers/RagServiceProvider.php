@@ -9,13 +9,19 @@ use App\Rag\Answer\ReferenceContextBuilder;
 use App\Rag\Citation\CitationFormatter;
 use App\Rag\Citation\CitationParser;
 use App\Rag\Citation\CitationResolver;
+use App\Rag\Retrieval\KeywordOnlyPolicy;
+use App\Rag\Retrieval\RankFusion;
+use App\Rag\Retrieval\RetrievalMode;
 use App\Rag\Retrieval\RetrieverService;
+use App\Rag\Search\ExactTermExtractor;
+use App\Rag\Search\SearchTextNormalizer;
 use App\Rag\VectorStore\ChunkIndexer;
 use App\Rag\VectorStore\CollectionManager;
 use App\Rag\VectorStore\CollectionResolver;
 use App\Rag\VectorStore\QdrantClient;
 use App\Rag\VectorStore\VectorSearcher;
 use App\Repositories\DocumentChunkRepository;
+use App\Repositories\KeywordSearchRepository;
 use App\Repositories\RagQueryLogRepository;
 use Illuminate\Support\ServiceProvider;
 
@@ -45,8 +51,18 @@ class RagServiceProvider extends ServiceProvider
         $this->app->bind(RetrieverService::class, fn ($app) => new RetrieverService(
             $app->make(VectorSearcher::class),
             $app->make(EmbeddingService::class),
+            $app->make(KeywordSearchRepository::class),
+            $app->make(ExactTermExtractor::class),
+            $app->make(SearchTextNormalizer::class),
+            $app->make(DocumentChunkRepository::class),
+            $app->make(RankFusion::class),
             $app['config']->get('rag.retrieval.top_k'),
             $app['config']->get('rag.retrieval.score_thresholds'),
+            RetrievalMode::from($app['config']->get('rag.retrieval.mode')),
+            KeywordOnlyPolicy::from($app['config']->get('rag.retrieval.keyword_only_policy')),
+            $app['config']->get('rag.retrieval.dense_candidates'),
+            $app['config']->get('rag.retrieval.keyword_candidates'),
+            $app['config']->get('rag.retrieval.rrf_k'),
         ));
 
         $this->app->bind(CitationResolver::class, fn ($app) => new CitationResolver(

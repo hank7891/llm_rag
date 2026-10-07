@@ -18,6 +18,13 @@ enum QuestionType: string
     // Ch09：一部分有答案、一部分資料不足（正確與否只能人工判讀）
     case Partial = 'partial';
 
+    // Ch11：條號（數字寫法、空白刻意與文件不同）、英數編號、專有名詞（人名、單位名稱）
+    case Article = 'article';
+
+    case Code = 'code';
+
+    case ProperNoun = 'proper_noun';
+
     public function label(): string
     {
         return match ($this) {
@@ -27,6 +34,9 @@ enum QuestionType: string
             self::NoAnswer => '無答案',
             self::Reasoning => '推理',
             self::Partial => '部分有答案',
+            self::Article => '條號',
+            self::Code => '編號',
+            self::ProperNoun => '專有名詞',
         };
     }
 }

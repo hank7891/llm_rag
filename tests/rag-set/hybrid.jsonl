@@ -1,0 +1,23 @@
+{"id": "a01", "type": "article", "question": "第12條在講什麼？", "expected": [{"document": "員工管理辦法.pdf", "section": "第十二條"}, {"document": "員工工作規則（長文件・修正版）.pdf", "section": "第十二條"}], "expected_answer": "兩份文件都有第十二條，命中任一份即算命中（與 Ch08 起所有測試集相同的規則）"}
+{"id": "a02", "type": "article", "question": "差勤規章第5條規定什麼？", "expected": [{"document": "員工差勤管理規章.pdf", "section": "第五條"}], "expected_answer": "題目含文件名「差勤規章」，但文件名不在 Chunk 內文中（只在 documents.name），關鍵字與向量都無法用文件名縮小範圍"}
+{"id": "a03", "type": "article", "question": "第3條之1 是什麼假？", "expected": [{"document": "員工差勤管理規章.pdf", "section": "第三條之一"}]}
+{"id": "a04", "type": "article", "question": "工作規則第25條的補助上限是多少？", "expected": [{"document": "員工工作規則（長文件・修正版）.pdf", "section": "第二十五條"}], "expected_answer": "題目含文件名「工作規則」，但文件名不在 Chunk 內文中（只在 documents.name），關鍵字與向量都無法用文件名縮小範圍"}
+{"id": "a05", "type": "article", "question": "第 6 條規定人資部門要在幾天內提供出勤紀錄？", "expected": [{"document": "員工差勤管理規章.pdf", "section": "第六條"}]}
+{"id": "a06", "type": "article", "question": "第49條什麼時候開始施行？", "expected": [{"document": "員工工作規則（長文件・修正版）.pdf", "section": "第四十九條"}]}
+{"id": "c01", "type": "code", "question": "HR-F-014 是什麼表單？", "expected": [{"document": "表單與系統代碼一覽.txt", "section": null}]}
+{"id": "c02", "type": "code", "question": "IT-REQ-2026-0042 要找誰審核？", "expected": [{"document": "表單與系統代碼一覽.txt", "section": null}]}
+{"id": "c03", "type": "code", "question": "BUG-2026-000183 要附上什麼？", "expected": [{"document": "表單與系統代碼一覽.txt", "section": null}]}
+{"id": "c04", "type": "code", "question": "財產編號 INV-887231 是什麼設備？", "expected": [{"document": "表單與系統代碼一覽.txt", "section": null}]}
+{"id": "c05", "type": "code", "question": "SEC-2026-0007 要在多久內填寫？", "expected": [{"document": "表單與系統代碼一覽.txt", "section": null}]}
+{"id": "c06", "type": "code", "question": "HRIS-3 是什麼系統？", "expected": [{"document": "表單與系統代碼一覽.txt", "section": null}]}
+{"id": "p01", "type": "proper_noun", "question": "林怡君負責什麼業務？", "expected": [{"document": "表單與系統代碼一覽.txt", "section": null}], "expected_answer": "人名抽不出規則化的精確詞，exact_only 時只能靠 Dense"}
+{"id": "p02", "type": "proper_noun", "question": "王雅婷的分機是多少？", "expected": [{"document": "表單與系統代碼一覽.txt", "section": null}], "expected_answer": "人名抽不出規則化的精確詞，exact_only 時只能靠 Dense"}
+{"id": "p03", "type": "proper_noun", "question": "陳柏翰要審核什麼？", "expected": [{"document": "表單與系統代碼一覽.txt", "section": null}], "expected_answer": "人名抽不出規則化的精確詞，exact_only 時只能靠 Dense"}
+{"id": "p04", "type": "proper_noun", "question": "內部服務台可以申請什麼？", "expected": [{"document": "新進員工手冊.md", "section": "資訊設備"}, {"document": "資訊設備盤點公告.txt", "section": null}]}
+{"id": "p05", "type": "proper_noun", "question": "資料外洩時要通報資訊安全負責人嗎？", "expected": [{"document": "員工差勤管理規章.pdf", "section": "第六條"}]}
+{"id": "n01", "type": "no_answer", "question": "員工旅遊的規定是什麼？", "expected": [], "expected_answer": "「員工」「規定」是常見二字詞"}
+{"id": "n02", "type": "no_answer", "question": "系統代碼 HR-9999 是什麼？", "expected": [], "expected_answer": "抽得出精確詞，但文件中沒有這個編號"}
+{"id": "n03", "type": "no_answer", "question": "第88條在講什麼？", "expected": [], "expected_answer": "條號不存在（最多到第四十九條）"}
+{"id": "n04", "type": "no_answer", "question": "人資部門在公司的幾樓？", "expected": [], "expected_answer": "「人資部門」在填充文字中出現上百次；已確認所有文件的原始檔都沒有「樓」字（沒有樓層資訊）"}
+{"id": "n05", "type": "no_answer", "question": "申請表單要用藍筆還是黑筆填寫？", "expected": [], "expected_answer": "「申請」「表單」是常見二字詞"}
+{"id": "n06", "type": "no_answer", "question": "總務組的上班時間是幾點？", "expected": [], "expected_answer": "「總務組」只出現在表單與系統代碼一覽"}

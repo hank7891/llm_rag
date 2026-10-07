@@ -14,6 +14,7 @@
 | `notice-utf8-bom.txt` | UTF-8 BOM | `notice-utf8.txt` 前面加上 `EF BB BF` |
 | `notice-big5.txt` | Big5 | `iconv -f UTF-8 -t CP950 notice-utf8.txt` |
 | `guide.md` | Markdown，含標題與清單 | 手寫 |
+| `forms-catalog.txt` | 表單與系統代碼一覽：含連字號的英數編號（HR-F-014、IT-REQ-2026-0042、BUG-2026-000183、INV-887231）、虛構人名與分機；Ch11 Hybrid Search 的編號題與專有名詞題用。上傳時檔名改為「表單與系統代碼一覽.txt」 | 手寫 |
 | `broken.pdf` | 副檔名是 .pdf、內容是純文字的偽裝檔（上傳時就會被 MIME 檢查擋下） | 手寫 |
 | `corrupted.pdf` | 真的 PDF 但內容被截斷（能通過上傳檢查，解析時失敗） | `head -c 3000 handbook.pdf > corrupted.pdf` |
 

@@ -6,6 +6,8 @@ use App\Rag\Evaluation\ExpectedSource;
 use App\Rag\Evaluation\QuestionType;
 use App\Rag\Evaluation\RetrievalEvaluator;
 use App\Rag\Evaluation\TestQuestion;
+use App\Rag\Retrieval\KeywordOnlyPolicy;
+use App\Rag\Retrieval\RetrievalMode;
 use App\Rag\Retrieval\RetrievalResult;
 use App\Rag\Retrieval\RetrievedChunk;
 use App\Rag\Retrieval\RetrieveOptions;
@@ -147,6 +149,26 @@ class RetrievalEvaluatorTest extends TestCase
         $report = $this->evaluator()->evaluate([self::question('q1', QuestionType::NoAnswer)], scoreThreshold: 0.66);
 
         $this->assertSame([0.66, false], [$report->scoreThreshold, $report->results[0]->hasCandidates]);
+    }
+
+    public function test_mode_policy_and_threshold_are_passed_to_retriever(): void
+    {
+        $calls = [];
+        $this->mock(RetrieverService::class, function (MockInterface $mock) use (&$calls) {
+            $mock->shouldReceive('configuredThreshold')->andReturn(0.59);
+            $mock->shouldReceive('retrieve')->andReturnUsing(function (string $query, RetrieveOptions $options) use (&$calls) {
+                $calls[] = [$options->mode, $options->keywordOnlyPolicy, $options->applyThreshold, $options->topK];
+
+                return new RetrievalResult([], 'fake', $options->topK ?? 5, 0.59, mode: $options->mode ?? RetrievalMode::Dense);
+            });
+        });
+
+        $report = $this->evaluator()->evaluate([self::question('q1', QuestionType::NoAnswer)], mode: RetrievalMode::Hybrid, policy: KeywordOnlyPolicy::Allow, applyThreshold: true);
+
+        $this->assertSame(
+            [[RetrievalMode::Hybrid, KeywordOnlyPolicy::Allow, true, 20], [RetrievalMode::Hybrid, KeywordOnlyPolicy::Allow, true, null], RetrievalMode::Hybrid, true],
+            [$calls[0], $calls[1], $report->mode, $report->thresholdApplied],
+        );
     }
 
     // ---- 測試集 ----

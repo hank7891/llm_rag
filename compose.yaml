@@ -14,6 +14,10 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      # FULLTEXT（Ch11）：中文以 2 字切詞；關閉停用詞，避免含 a、i 等單字母的英數編號搜不到。
+      # 兩者只在啟動時讀取，修改後要重啟 MySQL 並重建 FULLTEXT 索引
+      - --ngram_token_size=2
+      - --innodb_ft_enable_stopword=OFF
     ports:
       - "33060:3306"   # 避開 Mac 本機可能已有的 3306；Laravel 連 127.0.0.1:33060
     volumes:

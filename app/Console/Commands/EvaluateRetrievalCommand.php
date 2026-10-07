@@ -6,6 +6,8 @@ use App\Rag\Evaluation\EvaluationReport;
 use App\Rag\Evaluation\QuestionResult;
 use App\Rag\Evaluation\QuestionType;
 use App\Rag\Evaluation\RetrievalEvaluator;
+use App\Rag\Retrieval\KeywordOnlyPolicy;
+use App\Rag\Retrieval\RetrievalMode;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
@@ -17,6 +19,9 @@ class EvaluateRetrievalCommand extends Command
     protected $signature = 'rag:eval
         {--model= : Embedding 模型，未填使用目前設定的模型}
         {--threshold= : 覆寫相關度門檻（試算其他門檻用）}
+        {--mode= : 檢索模式 dense / keyword / hybrid，未填使用 rag.retrieval.mode}
+        {--policy= : keyword_only_policy：exact_only / allow，未填使用設定值}
+        {--apply-threshold : Recall 照系統實際行為計算（Dense 套門檻、資料不足的判斷），Ch11 比較檢索模式用}
         {--set=tests/rag-set/questions.jsonl : 測試集}
         {--output-dir=docs/notes : 評估結果的存放目錄}';
 
@@ -28,6 +33,9 @@ class EvaluateRetrievalCommand extends Command
             $evaluator->load($this->path($this->option('set'))),
             $this->option('model'),
             $this->option('threshold') === null ? null : (float) $this->option('threshold'),
+            $this->option('mode') === null ? null : RetrievalMode::from($this->option('mode')),
+            $this->option('policy') === null ? null : KeywordOnlyPolicy::from($this->option('policy')),
+            (bool) $this->option('apply-threshold'),
         );
 
         $sections = $this->sections($report);
@@ -36,7 +44,7 @@ class EvaluateRetrievalCommand extends Command
             $this->table($headers, $rows);
         }
 
-        $path = $this->path($this->option('output-dir')).'/rag-eval-'.$report->collection.'-'.now()->format('Ymd-His').'.md';
+        $path = $this->path($this->option('output-dir')).'/rag-eval-'.$report->collection.'-'.$report->mode->value.($report->mode === RetrievalMode::Dense ? '' : '-'.($report->keywordOnlyPolicy?->value ?? config('rag.retrieval.keyword_only_policy'))).'-'.now()->format('Ymd-His').'.md';
         File::ensureDirectoryExists(dirname($path));
         File::put($path, $this->markdown($report, $sections));
         $this->line("結果已寫入 {$path}");
@@ -69,7 +77,7 @@ class EvaluateRetrievalCommand extends Command
                 ['題型', ...array_map(fn (int $k) => "@{$k}", RetrievalEvaluator::RECALL_AT)],
                 [
                     $recallRow('全部（'.count($report->answerable()).' 題）', null),
-                    ...array_map(fn (QuestionType $t) => $recallRow($t->label(), $t), [QuestionType::Exact, QuestionType::Paraphrase, QuestionType::ExactId]),
+                    ...array_map(fn (QuestionType $t) => $recallRow($t->label(), $t), array_values(array_unique(array_map(fn (QuestionResult $r) => $r->question->type, $report->answerable()), SORT_REGULAR))),
                 ],
             ],
             'Top-1 分數分布' => [
@@ -92,8 +100,11 @@ class EvaluateRetrievalCommand extends Command
             ];
         }
 
+        // 測試集的 expected_answer 在檢索評估中作為備註（例如「題目含文件名，但文件名不在 Chunk 內文中」）
+        $withNote = collect($report->results)->contains(fn (QuestionResult $r) => $r->question->expectedAnswer !== null);
+
         $sections['每題明細'] = [
-            ['id', '題型', '問題', '命中名次', '命中分數', 'Top-1 分數', 'Top-1 來源', '門檻後', '進入 Context'],
+            ['id', '題型', '問題', '命中名次', '命中分數', 'Top-1 分數', 'Top-1 來源', '門檻後', '進入 Context', ...($withNote ? ['備註'] : [])],
             array_map(fn (QuestionResult $r) => [
                 $r->question->id,
                 $r->question->type->label(),
@@ -108,6 +119,7 @@ class EvaluateRetrievalCommand extends Command
                     false => in_array($r, $report->thresholdErrors(), true) ? '無候選 ✗' : '無候選',
                 },
                 $r->question->type === QuestionType::NoAnswer || $r->inContext === null ? '—' : ($r->inContext ? '是' : '否'),
+                ...($withNote ? [$r->question->expectedAnswer ?? ''] : []),
             ], $report->results),
         ];
 
@@ -124,6 +136,8 @@ class EvaluateRetrievalCommand extends Command
             "- 模型：{$report->model}",
             '- 測試集：'.$this->option('set').'（'.count($report->results).' 題）',
             '- 門檻：'.($report->scoreThreshold === null ? '未設定' : "> {$report->scoreThreshold}"),
+            "- 檢索模式：{$report->mode->value}".($report->mode === RetrievalMode::Dense ? '' : '（keyword_only_policy：'.($report->keywordOnlyPolicy?->value ?? config('rag.retrieval.keyword_only_policy')).'，rrf_k：'.config('rag.retrieval.rrf_k').'，候選數 dense '.config('rag.retrieval.dense_candidates').' / keyword '.config('rag.retrieval.keyword_candidates').'）'),
+            '- Recall 計算：'.($report->thresholdApplied ? '照系統實際行為（Dense 套門檻、資料不足的判斷）' : '不套門檻（Ch08）'),
         ];
 
         foreach ($sections as $title => [$headers, $rows]) {

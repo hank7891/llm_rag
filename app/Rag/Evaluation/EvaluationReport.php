@@ -2,6 +2,9 @@
 
 namespace App\Rag\Evaluation;
 
+use App\Rag\Retrieval\KeywordOnlyPolicy;
+use App\Rag\Retrieval\RetrievalMode;
+
 /**
  * 一次評估的結果與統計。Recall 只計算有答案的題目，而且不套用門檻（衡量「有沒有找對」）。
  */
@@ -14,6 +17,9 @@ final readonly class EvaluationReport
         public ?float $scoreThreshold,
         public array $results,
         public ?int $contextTopK = null,
+        public RetrievalMode $mode = RetrievalMode::Dense,
+        public ?KeywordOnlyPolicy $keywordOnlyPolicy = null,
+        public bool $thresholdApplied = false,
     ) {}
 
     /** 沒有該題型的有答案題時為 null */
@@ -42,7 +48,8 @@ final readonly class EvaluationReport
      */
     public static function topScores(array $results): array
     {
-        return array_values(array_filter(array_map(fn (QuestionResult $r) => $r->top?->score, $results), fn (?float $s) => $s !== null));
+        // Hybrid 時 score 是 RRF 分數，分布要看 Dense 的 Cosine；只被關鍵字找到的 Top-1 沒有 Cosine，不列入
+        return array_values(array_filter(array_map(fn (QuestionResult $r) => $r->top?->rrfScore === null ? $r->top?->score : $r->top->denseScore, $results), fn (?float $s) => $s !== null));
     }
 
     /**

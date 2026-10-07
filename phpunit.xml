@@ -16,6 +16,7 @@
         <exclude>
             <!-- 連線真實 Qdrant 的整合測試，預設不執行；執行方式見 tests/Feature/Rag/QdrantIntegrationTest.php -->
             <group>qdrant</group>
+            <group>fulltext</group>
         </exclude>
     </groups>
     <source>

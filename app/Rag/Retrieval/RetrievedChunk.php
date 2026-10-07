@@ -16,5 +16,11 @@ final readonly class RetrievedChunk
         public int $pageEnd,
         public string $content,
         public float $score,
+        public ?int $denseRank = null,
+        public ?float $denseScore = null,
+        public ?int $keywordRank = null,
+        public ?float $keywordScore = null,
+        public bool $exactMatch = false,
+        public ?float $rrfScore = null,
     ) {}
 }

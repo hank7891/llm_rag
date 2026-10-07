@@ -2,20 +2,29 @@
 
 namespace Tests\Feature\Rag;
 
+use App\Documents\DocumentStatus;
+use App\Models\DocumentChunk;
 use App\Rag\Retrieval\RetrievalResult;
 use App\Rag\Retrieval\RetrievedChunk;
 use App\Rag\Retrieval\RetrieveOptions;
 use App\Rag\Retrieval\RetrieverService;
+use App\Repositories\DocumentRepository;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use Tests\TestCase;
 
 /**
- * RetrieverService 與 rag:search。Qdrant 以 Http::fake() 模擬，向量由 FakeEmbeddingProvider 產生（模型 fake）。
+ * RetrieverService（dense 模式，Ch08 的行為）與 rag:search。Qdrant 以 Http::fake() 模擬，向量由 FakeEmbeddingProvider 產生（模型 fake）。
+ * 內容與 Metadata 以 MySQL 為準（Ch11），Qdrant 回傳的 id 必須對應到測試資料庫中真的存在的 Chunk。
  */
 class RetrieverTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    private int $chunkId;
+
     private const QUERY = 'http://qdrant.test/collections/company_docs_fake/points/query';
 
     private const PAYLOAD = [
@@ -30,6 +39,18 @@ class RetrieverTest extends TestCase
         config()->set('rag.qdrant.url', 'http://qdrant.test');
         config()->set('rag.retrieval.top_k', 7);
         config()->set('rag.retrieval.score_thresholds', ['fake' => 0.5]);
+        config()->set('rag.retrieval.mode', 'dense');
+
+        $document = (new DocumentRepository)->create(['name' => '員工管理辦法.pdf', 'mime_type' => 'application/pdf', 'path' => 'x', 'size' => 1, 'sha256' => str_repeat('0', 64)]);
+        $document->forceFill(['status_key' => DocumentStatus::Indexed])->save();
+        $this->chunkId = DocumentChunk::create(['document_id' => $document->id, 'chunk_index' => 3, 'content' => self::PAYLOAD['content'], 'char_count' => 20, 'token_count' => 20,
+            'page_start' => 2, 'page_end' => 3, 'section' => '第十二條', 'chunk_strategy' => 's', 'created_at' => now()])->id;
+    }
+
+    /** Qdrant 回傳的一個 Point（id 對應測試資料庫中的 Chunk） */
+    private function point(float $score): array
+    {
+        return ['id' => $this->chunkId, 'version' => 1, 'score' => $score, 'payload' => self::PAYLOAD];
     }
 
     /** @param list<array<string, mixed>> $points */
@@ -73,10 +94,10 @@ class RetrieverTest extends TestCase
 
     public function test_hits_are_mapped_to_retrieved_chunks(): void
     {
-        $this->fakeQuery([['id' => 101, 'version' => 1, 'score' => 0.6773, 'payload' => self::PAYLOAD]]);
+        $this->fakeQuery([$this->point(0.6773)]);
 
         $this->assertEquals(
-            [new RetrievedChunk(101, 4, '員工管理辦法.pdf', '第十二條', 2, 3, '員工年度特別休假未休畢者，得遞延至次一年度。', 0.6773)],
+            [new RetrievedChunk($this->chunkId, DocumentChunk::find($this->chunkId)->document_id, '員工管理辦法.pdf', '第十二條', 2, 3, '員工年度特別休假未休畢者，得遞延至次一年度。', 0.6773, denseRank: 1, denseScore: 0.6773)],
             $this->retrieve()->chunks,
         );
     }
@@ -92,7 +113,7 @@ class RetrieverTest extends TestCase
     {
         // 第一次（有門檻）沒有結果；第二次（不套門檻、取 1 筆）取得被擋掉的最高分
         Http::fake([self::QUERY => fn (Request $r) => Http::response(['result' => ['points' => isset($r['score_threshold'])
-            ? [] : [['id' => 101, 'version' => 1, 'score' => 0.5498, 'payload' => self::PAYLOAD]]], 'status' => 'ok'])]);
+            ? [] : [$this->point(0.5498)]], 'status' => 'ok'])]);
 
         $result = $this->retrieve();
 
@@ -117,11 +138,11 @@ class RetrieverTest extends TestCase
 
     public function test_search_command_lists_ranked_chunks(): void
     {
-        $this->fakeQuery([['id' => 101, 'version' => 1, 'score' => 0.6773, 'payload' => self::PAYLOAD]]);
+        $this->fakeQuery([$this->point(0.6773)]);
 
         $this->artisan('rag:search', ['query' => '我的假沒休完怎麼辦？'])
             ->expectsOutputToContain('門檻：> 0.5')
-            ->expectsTable(['#', '分數', '檔名', 'section', '頁碼', '內容開頭'], [[1, '0.6773', '員工管理辦法.pdf', '第十二條', '2–3', self::PAYLOAD['content']]])
+            ->expectsTable(['#', '分數', 'Dense', '關鍵字', '精確', '檔名', 'section', '頁碼', '內容開頭'], [[1, '0.6773', '1（0.6773）', '—', '', '員工管理辦法.pdf', '第十二條', '2–3', self::PAYLOAD['content']]])
             ->assertSuccessful();
     }
 

@@ -33,6 +33,19 @@ return [
         // 未指定時回傳的筆數
         'top_k' => (int) env('RAG_TOP_K', 5),
 
+        // dense（Ch08）/ keyword / hybrid（Ch11：向量 + 關鍵字，以 RRF 合併）
+        'mode' => env('RAG_RETRIEVAL_MODE', 'hybrid'),
+
+        // 只被一般關鍵字找到的 Chunk 能否進入結果：exact_only（只有精確命中可以）/ allow
+        'keyword_only_policy' => env('RAG_KEYWORD_ONLY_POLICY', 'exact_only'),
+
+        // Hybrid 時各路先取的候選數（Dense 為套門檻後），合併後再取 Top-K
+        'dense_candidates' => (int) env('RAG_DENSE_CANDIDATES', 20),
+        'keyword_candidates' => (int) env('RAG_KEYWORD_CANDIDATES', 20),
+
+        // RRF 常數：分數 = Σ 1 / (k + 名次)。k 越大名次差距越小，60 為常用預設
+        'rrf_k' => (int) env('RAG_RRF_K', 60),
+
         // 相關度門檻，依 Embedding 模型分別設定（Cosine 分數的絕對值依模型而不同，不可沿用）。
         // 分數「大於」門檻才保留（Qdrant score_threshold 實測）。沒有設定門檻的模型不可直接檢索，
         // 避免沒有門檻、無關內容全部通過

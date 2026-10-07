@@ -19,6 +19,8 @@ final readonly class RetrievalResult
         public int $topK,
         public ?float $scoreThreshold,
         public ?float $unfilteredTopScore = null,
+        public ?float $denseTopScore = null,
+        public RetrievalMode $mode = RetrievalMode::Dense,
     ) {}
 
     public function hasCandidates(): bool
@@ -26,9 +28,15 @@ final readonly class RetrievalResult
         return $this->chunks !== [];
     }
 
-    /** 不論是否通過門檻的最高分；Collection 是空的時為 null */
+    /**
+     * 不論是否通過門檻的 Dense 最高分（Cosine）；Collection 是空的時為 null。
+     * Hybrid 時 chunks 的 score 是 RRF 分數，所以優先使用 denseTopScore，紀錄與校準門檻才有一致的意義。
+     */
     public function topScore(): ?float
     {
-        return $this->chunks[0]->score ?? $this->unfilteredTopScore;
+        // 非 Dense 模式時 chunks 的 score 是 RRF 分數，不能當成 Cosine 使用
+        $fallback = $this->mode === RetrievalMode::Dense ? ($this->chunks[0]->score ?? null) : null;
+
+        return $this->denseTopScore ?? $fallback ?? $this->unfilteredTopScore;
     }
 }
