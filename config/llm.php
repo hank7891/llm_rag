@@ -5,6 +5,8 @@ use App\Ai\Chat\Providers\GeminiProvider;
 use App\Ai\Chat\Providers\OllamaProvider;
 use App\Ai\Chat\Providers\OpenAIProvider;
 use App\Ai\Embedding\Providers\FakeEmbeddingProvider;
+use App\Ai\Rerank\Providers\CohereCompatibleRerankProvider;
+use App\Ai\Rerank\Providers\FakeRerankProvider;
 
 /*
  * LLM 抽象層設定。檔名不用 ai.php，避免與官方套件 laravel/ai 的 config/ai.php 衝突。
@@ -22,6 +24,27 @@ return [
             'openai' => OpenAIProvider::class,
             'gemini' => GeminiProvider::class,
             'fake' => FakeChatProvider::class,
+        ],
+
+    ],
+
+    'rerank' => [
+
+        // Rerank（Cross-encoder）能力。Ollama 不支援 Rerank，地端改用 llama.cpp 的 llama-server（Ch12）
+        'default' => env('RAG_RERANK_PROVIDER', 'llamacpp'),
+
+        // provider 名稱 → 實作 RerankProviderInterface 的類別；Cohere 相容格式的服務（TEI、Jina、Cohere）都可以共用
+        'providers' => [
+            'llamacpp' => CohereCompatibleRerankProvider::class,
+            'fake' => FakeRerankProvider::class,
+        ],
+
+        // llama-server 須以 --embedding --pooling rank --reranking 啟動，--alias 與 model 一致（啟動指令見 CLAUDE.md）
+        'llamacpp' => [
+            'base_url' => env('RAG_RERANK_BASE_URL', 'http://127.0.0.1:8012'),
+            'model' => env('RAG_RERANK_MODEL', 'bge-reranker-v2-m3'),
+            // 秒；逾時或失敗時檢索退回原本的排序，問答不中斷
+            'timeout' => (float) env('RAG_RERANK_TIMEOUT', 3),
         ],
 
     ],

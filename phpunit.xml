@@ -29,6 +29,15 @@
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="LLM_CHAT_PROVIDER" value="fake"/>
         <env name="LLM_EMBEDDING_PROVIDER" value="fake"/>
+        <env name="RAG_RERANK_PROVIDER" value="fake"/>
+        <env name="RAG_RERANK_ENABLED" value="false"/>
+        <!-- 檢索與重排的策略固定為預設值，測試不受開發環境 .env 的調整影響（Ch12：.env 開啟 prefix_metadata 時測試曾因此失敗） -->
+        <env name="RAG_RERANK_CANDIDATES" value="20"/>
+        <env name="RAG_RERANK_KEEP_EXACT" value="true"/>
+        <env name="RAG_RERANK_PREFIX_METADATA" value="false"/>
+        <env name="RAG_RERANK_TIMEOUT" value="3"/>
+        <env name="RAG_RETRIEVAL_MODE" value="hybrid"/>
+        <env name="RAG_KEYWORD_ONLY_POLICY" value="exact_only"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>

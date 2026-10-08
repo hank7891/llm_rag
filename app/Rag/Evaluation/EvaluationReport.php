@@ -30,6 +30,33 @@ final readonly class EvaluationReport
         return $answerable === [] ? null : count(array_filter($answerable, fn (QuestionResult $r) => $r->hitWithin($k))) / count($answerable);
     }
 
+    /**
+     * MRR：正確段落名次的倒數平均（第 1 名得 1、第 2 名得 0.5、沒找到得 0）。Recall@5 看不出第 4 名升到第 1 名，MRR 看得出來。
+     * 只計算有答案的題目；沒有該題型時為 null。
+     */
+    public function mrr(?QuestionType $type = null): ?float
+    {
+        $answerable = array_filter($this->answerable(), fn (QuestionResult $r) => $type === null || $r->question->type === $type);
+
+        return $answerable === [] ? null : array_sum(array_map(fn (QuestionResult $r) => $r->rank === null ? 0 : 1 / $r->rank, $answerable)) / count($answerable);
+    }
+
+    /**
+     * Reranker 耗時的百分位數（只計算有實際重排的題目）。沒有重排時為 null。
+     */
+    public function rerankLatencyPercentile(int $percentile): ?int
+    {
+        $ms = array_values(array_filter(array_map(fn (QuestionResult $r) => $r->rerankMs, $this->results), fn (?int $v) => $v !== null));
+        sort($ms);
+
+        return $ms === [] ? null : $ms[max(0, (int) ceil($percentile / 100 * count($ms)) - 1)];
+    }
+
+    public function rerankDegradedCount(): int
+    {
+        return count(array_filter($this->results, fn (QuestionResult $r) => $r->rerankDegraded));
+    }
+
     /** @return list<QuestionResult> */
     public function answerable(): array
     {

@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Rag;
 
+use App\Rag\Evaluation\EvaluationReport;
 use App\Rag\Evaluation\ExpectedSource;
+use App\Rag\Evaluation\QuestionResult;
 use App\Rag\Evaluation\QuestionType;
 use App\Rag\Evaluation\RetrievalEvaluator;
 use App\Rag\Evaluation\TestQuestion;
@@ -169,6 +171,29 @@ class RetrievalEvaluatorTest extends TestCase
             [[RetrievalMode::Hybrid, KeywordOnlyPolicy::Allow, true, 20], [RetrievalMode::Hybrid, KeywordOnlyPolicy::Allow, true, null], RetrievalMode::Hybrid, true],
             [$calls[0], $calls[1], $report->mode, $report->thresholdApplied],
         );
+    }
+
+    // ---- MRR 與 Reranker 指標 ----
+
+    /** @param list<array{?int, ?int, bool}> $rows [名次, 重排 ms, 是否降級] */
+    private static function report(array $rows): EvaluationReport
+    {
+        return new EvaluationReport('fake', 'company_docs_fake', 0.59, array_map(
+            fn (array $row, int $i) => new QuestionResult(self::question("q{$i}", QuestionType::Paraphrase, [new ExpectedSource('A.pdf', null)]), $row[0], null, null, null, null, null, $row[1], $row[2]),
+            $rows, array_keys($rows),
+        ));
+    }
+
+    public function test_mrr_averages_reciprocal_rank_and_counts_misses_as_zero(): void
+    {
+        $this->assertEqualsWithDelta((1 + 1 / 4 + 0) / 3, self::report([[1, null, false], [4, null, false], [null, null, false]])->mrr(), 1e-9);
+    }
+
+    public function test_rerank_latency_percentiles_and_degraded_count(): void
+    {
+        $report = self::report([[1, 100, false], [1, 300, false], [1, 200, false], [1, 900, false], [1, null, true]]);
+
+        $this->assertSame([200, 900, 1], [$report->rerankLatencyPercentile(50), $report->rerankLatencyPercentile(95), $report->rerankDegradedCount()]);
     }
 
     // ---- 測試集 ----

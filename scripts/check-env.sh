@@ -26,7 +26,19 @@ command -v composer >/dev/null && pass "Composer 已安裝" || fail "缺 Compose
 command -v pdftotext >/dev/null && pass "pdftotext 已安裝（Ch03 用）" || fail "缺 pdftotext（brew install poppler）"
 php artisan migrate:status >/dev/null 2>&1 && pass "Laravel 連得到 MySQL，migration 已執行" || fail "migrate:status 失敗"
 
-echo "[4] 版控安全"
+echo "[4] Reranker（llama-server，Mac 原生，Ch12）"
+RERANK_URL=$(envval RAG_RERANK_BASE_URL); RERANK_URL=${RERANK_URL:-http://127.0.0.1:8012}
+RERANK_ENABLED=$(envval RAG_RERANK_ENABLED)
+if curl -sf -m 3 "${RERANK_URL}/health" | grep -q '"ok"'; then
+  pass "llama-server 有回應（${RERANK_URL}）"
+else
+  # 沒有啟動時檢索會靜靜地降級（退回第一階段排序），品質回到 Ch11
+  fail "llama-server 沒有回應（${RERANK_URL}，RAG_RERANK_ENABLED=${RERANK_ENABLED:-未設定}）。請另開終端機啟動："
+  echo "      llama-server -m ~/models/bge-reranker-v2-m3-Q8_0.gguf --alias bge-reranker-v2-m3 --embedding --pooling rank --reranking --host 127.0.0.1 --port 8012 -c 8192 -b 2048 -ub 2048"
+fi
+[ -f ~/models/bge-reranker-v2-m3-Q8_0.gguf ] && pass "Reranker 模型檔存在（~/models/bge-reranker-v2-m3-Q8_0.gguf）" || fail "找不到 ~/models/bge-reranker-v2-m3-Q8_0.gguf（gpustack/bge-reranker-v2-m3-GGUF 的 Q8_0）"
+
+echo "[5] 版控安全"
 git check-ignore -q .env && pass ".env 已被 .gitignore 排除" || fail ".env 沒有被排除！"
 git ls-files --error-unmatch .env >/dev/null 2>&1 && fail ".env 已經被 commit 過，要移除" || pass ".env 不在版控中"
 

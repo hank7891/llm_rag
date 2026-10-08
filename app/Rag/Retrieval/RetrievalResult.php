@@ -21,6 +21,9 @@ final readonly class RetrievalResult
         public ?float $unfilteredTopScore = null,
         public ?float $denseTopScore = null,
         public RetrievalMode $mode = RetrievalMode::Dense,
+        public bool $reranked = false,
+        public ?int $rerankMs = null,
+        public bool $rerankDegraded = false,
     ) {}
 
     public function hasCandidates(): bool

@@ -59,6 +59,26 @@ return [
 
     ],
 
+    'rerank' => [
+
+        // 第二階段重排（Ch12，Cross-encoder bge-reranker-v2-m3 on llama-server）。評估後由使用者決定才改成 true；
+        // false 時檢索結果與 Ch11 完全相同。連線設定（位址、模型、逾時）在 config/llm.php 的 rerank 區塊
+        'enabled' => (bool) env('RAG_RERANK_ENABLED', false),
+
+        // 送進 Reranker 的候選數。延遲大致與候選總字數成正比（實測 5 / 10 / 20 段約 0.6 / 1.2 / 2.8 秒）
+        'candidates' => (int) env('RAG_RERANK_CANDIDATES', 20),
+
+        // 精確命中（編號、條號）的段落保證保留在最終結果中，不會被 Reranker 擠掉
+        'keep_exact' => (bool) env('RAG_RERANK_KEEP_EXACT', true),
+
+        // 送出時在段落前加上「文件名稱 條號：」
+        'prefix_metadata' => (bool) env('RAG_RERANK_PREFIX_METADATA', false),
+
+        // 實驗用：低於此分數的段落不採用（logit，與 Cosine 尺度不同）。預設 null 不啟用，第一版不用 Reranker 分數判斷有無資料
+        'min_score' => env('RAG_RERANK_MIN_SCORE') === null ? null : (float) env('RAG_RERANK_MIN_SCORE'),
+
+    ],
+
     'answer' => [
 
         // 送進 Context 的最多 Chunk 數。目前與 retrieval.top_k 相同；加入 Reranker 後會先取較多候選，再挑這個數量送給 LLM

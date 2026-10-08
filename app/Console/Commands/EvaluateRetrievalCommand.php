@@ -22,6 +22,10 @@ class EvaluateRetrievalCommand extends Command
         {--mode= : 檢索模式 dense / keyword / hybrid，未填使用 rag.retrieval.mode}
         {--policy= : keyword_only_policy：exact_only / allow，未填使用設定值}
         {--apply-threshold : Recall 照系統實際行為計算（Dense 套門檻、資料不足的判斷），Ch11 比較檢索模式用}
+        {--rerank= : on / off，未填使用 rag.rerank.enabled}
+        {--rerank-candidates= : 送進 Reranker 的候選數}
+        {--rerank-keep-exact= : on / off：精確命中是否保證保留}
+        {--rerank-prefix-metadata= : on / off：段落前是否加上「文件名稱 條號：」}
         {--set=tests/rag-set/questions.jsonl : 測試集}
         {--output-dir=docs/notes : 評估結果的存放目錄}';
 
@@ -36,6 +40,10 @@ class EvaluateRetrievalCommand extends Command
             $this->option('mode') === null ? null : RetrievalMode::from($this->option('mode')),
             $this->option('policy') === null ? null : KeywordOnlyPolicy::from($this->option('policy')),
             (bool) $this->option('apply-threshold'),
+            $this->onOff('rerank'),
+            $this->option('rerank-candidates') === null ? null : (int) $this->option('rerank-candidates'),
+            $this->onOff('rerank-keep-exact'),
+            $this->onOff('rerank-prefix-metadata'),
         );
 
         $sections = $this->sections($report);
@@ -44,12 +52,29 @@ class EvaluateRetrievalCommand extends Command
             $this->table($headers, $rows);
         }
 
-        $path = $this->path($this->option('output-dir')).'/rag-eval-'.$report->collection.'-'.$report->mode->value.($report->mode === RetrievalMode::Dense ? '' : '-'.($report->keywordOnlyPolicy?->value ?? config('rag.retrieval.keyword_only_policy'))).'-'.now()->format('Ymd-His').'.md';
+        $path = $this->path($this->option('output-dir')).'/rag-eval-'.$report->collection.'-'.$report->mode->value.($report->mode === RetrievalMode::Dense ? '' : '-'.($report->keywordOnlyPolicy?->value ?? config('rag.retrieval.keyword_only_policy'))).$this->rerankTag().'-'.now()->format('Ymd-His').'.md';
         File::ensureDirectoryExists(dirname($path));
         File::put($path, $this->markdown($report, $sections));
         $this->line("結果已寫入 {$path}");
 
         return self::SUCCESS;
+    }
+
+    private function onOff(string $option): ?bool
+    {
+        return $this->option($option) === null ? null : $this->option($option) === 'on';
+    }
+
+    /** 檔名用：-rerank-c20、-rerank-c20-noexact、-rerank-c20-prefix */
+    private function rerankTag(): string
+    {
+        if (! ($this->onOff('rerank') ?? config('rag.rerank.enabled'))) {
+            return '';
+        }
+
+        return '-rerank-c'.($this->option('rerank-candidates') ?? config('rag.rerank.candidates'))
+            .(($this->onOff('rerank-keep-exact') ?? config('rag.rerank.keep_exact')) ? '' : '-noexact')
+            .(($this->onOff('rerank-prefix-metadata') ?? config('rag.rerank.prefix_metadata')) ? '-prefix' : '');
     }
 
     /** 相對路徑以專案根目錄為準 */
@@ -62,7 +87,7 @@ class EvaluateRetrievalCommand extends Command
     private function sections(EvaluationReport $report): array
     {
         $percent = fn (?float $v) => $v === null ? '—' : sprintf('%.0f%%', $v * 100);
-        $recallRow = fn (string $label, ?QuestionType $type) => [$label, ...array_map(fn (int $k) => $percent($report->recall($k, $type)), RetrievalEvaluator::RECALL_AT)];
+        $recallRow = fn (string $label, ?QuestionType $type) => [$label, ...array_map(fn (int $k) => $percent($report->recall($k, $type)), RetrievalEvaluator::RECALL_AT), $report->mrr($type) === null ? '—' : sprintf('%.3f', $report->mrr($type))];
 
         $distribution = function (string $label, array $results) {
             $scores = EvaluationReport::topScores($results);
@@ -74,7 +99,7 @@ class EvaluateRetrievalCommand extends Command
 
         $sections = [
             'Recall@K（不套用門檻，只計算有答案的題目）' => [
-                ['題型', ...array_map(fn (int $k) => "@{$k}", RetrievalEvaluator::RECALL_AT)],
+                ['題型', ...array_map(fn (int $k) => "@{$k}", RetrievalEvaluator::RECALL_AT), 'MRR'],
                 [
                     $recallRow('全部（'.count($report->answerable()).' 題）', null),
                     ...array_map(fn (QuestionType $t) => $recallRow($t->label(), $t), array_values(array_unique(array_map(fn (QuestionResult $r) => $r->question->type, $report->answerable()), SORT_REGULAR))),
@@ -101,10 +126,23 @@ class EvaluateRetrievalCommand extends Command
         }
 
         // 測試集的 expected_answer 在檢索評估中作為備註（例如「題目含文件名，但文件名不在 Chunk 內文中」）
+        $reranked = collect($report->results)->contains(fn (QuestionResult $r) => $r->rerankMs !== null || $r->rerankDegraded);
+        if ($reranked) {
+            $sections['Reranker'] = [
+                ['項目', '數值'],
+                [
+                    ['有重排的題數', count(array_filter($report->results, fn (QuestionResult $r) => $r->rerankMs !== null))],
+                    ['降級次數（Reranker 失敗、退回原排序）', $report->rerankDegradedCount()],
+                    ['延遲 p50（ms）', $report->rerankLatencyPercentile(50) ?? '—'],
+                    ['延遲 p95（ms）', $report->rerankLatencyPercentile(95) ?? '—'],
+                ],
+            ];
+        }
+
         $withNote = collect($report->results)->contains(fn (QuestionResult $r) => $r->question->expectedAnswer !== null);
 
         $sections['每題明細'] = [
-            ['id', '題型', '問題', '命中名次', '命中分數', 'Top-1 分數', 'Top-1 來源', '門檻後', '進入 Context', ...($withNote ? ['備註'] : [])],
+            ['id', '題型', '問題', '命中名次', '命中分數', 'Top-1 分數', 'Top-1 來源', '門檻後', '進入 Context', ...($reranked ? ['重排前→後', 'Top-1 重排分數', '重排 ms'] : []), ...($withNote ? ['備註'] : [])],
             array_map(fn (QuestionResult $r) => [
                 $r->question->id,
                 $r->question->type->label(),
@@ -119,6 +157,11 @@ class EvaluateRetrievalCommand extends Command
                     false => in_array($r, $report->thresholdErrors(), true) ? '無候選 ✗' : '無候選',
                 },
                 $r->question->type === QuestionType::NoAnswer || $r->inContext === null ? '—' : ($r->inContext ? '是' : '否'),
+                ...($reranked ? [
+                    $r->rank === null ? '—' : ($r->preRerankRank ?? '—').'→'.$r->rank,
+                    $r->top?->rerankScore === null ? '—' : sprintf('%.3f', $r->top->rerankScore),
+                    $r->rerankDegraded ? '降級' : ($r->rerankMs ?? '—'),
+                ] : []),
                 ...($withNote ? [$r->question->expectedAnswer ?? ''] : []),
             ], $report->results),
         ];
@@ -137,6 +180,9 @@ class EvaluateRetrievalCommand extends Command
             '- 測試集：'.$this->option('set').'（'.count($report->results).' 題）',
             '- 門檻：'.($report->scoreThreshold === null ? '未設定' : "> {$report->scoreThreshold}"),
             "- 檢索模式：{$report->mode->value}".($report->mode === RetrievalMode::Dense ? '' : '（keyword_only_policy：'.($report->keywordOnlyPolicy?->value ?? config('rag.retrieval.keyword_only_policy')).'，rrf_k：'.config('rag.retrieval.rrf_k').'，候選數 dense '.config('rag.retrieval.dense_candidates').' / keyword '.config('rag.retrieval.keyword_candidates').'）'),
+            '- Reranker：'.(($this->onOff('rerank') ?? config('rag.rerank.enabled'))
+                ? config('llm.rerank.llamacpp.model').'（候選 '.($this->option('rerank-candidates') ?? config('rag.rerank.candidates')).'、keep_exact '.(($this->onOff('rerank-keep-exact') ?? config('rag.rerank.keep_exact')) ? 'on' : 'off').'、prefix_metadata '.(($this->onOff('rerank-prefix-metadata') ?? config('rag.rerank.prefix_metadata')) ? 'on' : 'off').'、逾時 '.config('llm.rerank.llamacpp.timeout').' 秒）'
+                : 'off'),
             '- Recall 計算：'.($report->thresholdApplied ? '照系統實際行為（Dense 套門檻、資料不足的判斷）' : '不套門檻（Ch08）'),
         ];
 

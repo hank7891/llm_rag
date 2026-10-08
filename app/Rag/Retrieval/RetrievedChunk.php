@@ -22,5 +22,17 @@ final readonly class RetrievedChunk
         public ?float $keywordScore = null,
         public bool $exactMatch = false,
         public ?float $rrfScore = null,
+        public ?int $retrievalRank = null,
+        public ?int $rerankRank = null,
+        public ?float $rerankScore = null,
     ) {}
+
+    /** 重排後的副本：保留第一階段的所有欄位，加上 Reranker 的名次與分數 */
+    public function withRerank(int $rank, float $score): self
+    {
+        return new self(
+            $this->chunkId, $this->documentId, $this->documentName, $this->section, $this->pageStart, $this->pageEnd, $this->content, $this->score,
+            $this->denseRank, $this->denseScore, $this->keywordRank, $this->keywordScore, $this->exactMatch, $this->rrfScore, $this->retrievalRank, $rank, $score,
+        );
+    }
 }

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Ai\Chat\ChatService;
 use App\Ai\Embedding\EmbeddingService;
+use App\Ai\Rerank\RerankService;
 use App\Rag\Answer\RagAnswerService;
 use App\Rag\Answer\ReferenceContextBuilder;
 use App\Rag\Citation\CitationFormatter;
@@ -11,6 +12,7 @@ use App\Rag\Citation\CitationParser;
 use App\Rag\Citation\CitationResolver;
 use App\Rag\Retrieval\KeywordOnlyPolicy;
 use App\Rag\Retrieval\RankFusion;
+use App\Rag\Retrieval\RerankStage;
 use App\Rag\Retrieval\RetrievalMode;
 use App\Rag\Retrieval\RetrieverService;
 use App\Rag\Search\ExactTermExtractor;
@@ -63,6 +65,11 @@ class RagServiceProvider extends ServiceProvider
             $app['config']->get('rag.retrieval.dense_candidates'),
             $app['config']->get('rag.retrieval.keyword_candidates'),
             $app['config']->get('rag.retrieval.rrf_k'),
+            new RerankStage($app->make(RerankService::class), $app['log'], $app['config']->get('rag.rerank.min_score')),
+            $app['config']->get('rag.rerank.enabled'),
+            $app['config']->get('rag.rerank.candidates'),
+            $app['config']->get('rag.rerank.keep_exact'),
+            $app['config']->get('rag.rerank.prefix_metadata'),
         ));
 
         $this->app->bind(CitationResolver::class, fn ($app) => new CitationResolver(

@@ -20,7 +20,8 @@ class SearchChunksCommand extends Command
         {--threshold= : 覆寫相關度門檻}
         {--no-threshold : 不套用門檻，列出原始分數}
         {--mode= : 檢索模式 dense / keyword / hybrid，未填使用 rag.retrieval.mode}
-        {--policy= : keyword_only_policy：exact_only / allow}';
+        {--policy= : keyword_only_policy：exact_only / allow}
+        {--rerank= : on / off，未填使用 rag.rerank.enabled}';
 
     protected $description = '以問題搜尋 Chunk，列出排名、分數、檔名、條號、頁碼與內容開頭';
 
@@ -33,9 +34,18 @@ class SearchChunksCommand extends Command
             applyThreshold: ! $this->option('no-threshold'),
             mode: $this->option('mode') === null ? null : RetrievalMode::from($this->option('mode')),
             keywordOnlyPolicy: $this->option('policy') === null ? null : KeywordOnlyPolicy::from($this->option('policy')),
+            rerank: $this->option('rerank') === null ? null : $this->option('rerank') === 'on',
         ));
 
-        $this->line(sprintf('模式：%s　模型：%s　Top-K：%d　門檻：%s', $result->mode->value, $result->model, $result->topK, $result->scoreThreshold === null ? '不套用' : '> '.$result->scoreThreshold));
+        $this->line(sprintf(
+            '模式：%s　模型：%s　Top-K：%d　門檻：%s　重排：%s',
+            $result->mode->value, $result->model, $result->topK, $result->scoreThreshold === null ? '不套用' : '> '.$result->scoreThreshold,
+            match (true) {
+                $result->reranked => "是（{$result->rerankMs} ms）",
+                $result->rerankDegraded => '失敗，已退回原排序',
+                default => '否',
+            },
+        ));
 
         if (! $result->hasCandidates()) {
             $this->warn($result->scoreThreshold === null
@@ -46,9 +56,12 @@ class SearchChunksCommand extends Command
         }
 
         // Dense / 關鍵字欄為「名次（分數）」；Hybrid 時分數欄為 RRF 分數
-        $this->table(['#', '分數', 'Dense', '關鍵字', '精確', '檔名', 'section', '頁碼', '內容開頭'], array_map(fn (int $rank, RetrievedChunk $chunk) => [
+        // 候選：第一階段（Dense / Hybrid）的名次；重排：Reranker 的名次（分數為 logit）
+        $this->table(['#', '分數', '候選', '重排', 'Dense', '關鍵字', '精確', '檔名', 'section', '頁碼', '內容開頭'], array_map(fn (int $rank, RetrievedChunk $chunk) => [
             $rank + 1,
             sprintf('%.4f', $chunk->score),
+            $chunk->retrievalRank ?? '—',
+            $chunk->rerankRank === null ? '—' : sprintf('%d（%.3f）', $chunk->rerankRank, $chunk->rerankScore),
             $chunk->denseRank === null ? '—' : sprintf('%d（%.4f）', $chunk->denseRank, $chunk->denseScore),
             $chunk->keywordRank === null ? '—' : sprintf('%d（%.2f）', $chunk->keywordRank, $chunk->keywordScore),
             $chunk->exactMatch ? '✓' : '',

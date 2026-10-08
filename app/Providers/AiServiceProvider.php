@@ -8,6 +8,8 @@ use App\Ai\Chat\Providers\OllamaProvider;
 use App\Ai\Chat\Providers\OpenAIProvider;
 use App\Ai\Embedding\EmbeddingModels;
 use App\Ai\Embedding\EmbeddingService;
+use App\Ai\Rerank\Providers\CohereCompatibleRerankProvider;
+use App\Ai\Rerank\RerankService;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -33,6 +35,15 @@ class AiServiceProvider extends ServiceProvider
             $app->make(EmbeddingModels::class),
             $app['log'],
         ));
+
+        $this->app->singleton(RerankService::class, fn ($app) => new RerankService(
+            $app,
+            $app['config']->get('llm.rerank.providers', []),
+            $app['config']->get('llm.rerank.default'),
+            $app['log'],
+        ));
+
+        $this->app->bind(CohereCompatibleRerankProvider::class, fn ($app) => new CohereCompatibleRerankProvider(['name' => 'llamacpp'] + $app['config']->get('llm.rerank.llamacpp')));
 
         $this->app->bind(OllamaProvider::class, fn ($app) => new OllamaProvider($app['config']->get('llm.ollama'), $app->make(EmbeddingModels::class)));
         $this->app->bind(OpenAIProvider::class, fn ($app) => new OpenAIProvider($app['config']->get('llm.openai')));

@@ -34,6 +34,11 @@ class RetrieverService
         private readonly int $denseCandidates,
         private readonly int $keywordCandidates,
         private readonly int $rrfK,
+        private readonly RerankStage $rerankStage,
+        private readonly bool $rerankEnabled,
+        private readonly int $rerankCandidates,
+        private readonly bool $rerankKeepExact,
+        private readonly bool $rerankPrefixMetadata,
     ) {}
 
     /**
@@ -46,7 +51,11 @@ class RetrieverService
         $model = EmbeddingModels::canonical($options->model ?? $this->embedding->defaultModel());
         $mode = $options->mode ?? $this->mode;
         $policy = $options->keywordOnlyPolicy ?? $this->keywordOnlyPolicy;
-        $topK = $options->topK ?? $this->topK;
+        $finalTopK = $options->topK ?? $this->topK;
+        $rerank = $options->rerank ?? $this->rerankEnabled;
+        $candidates = $options->rerankCandidates ?? $this->rerankCandidates;
+        // 重排時第一階段先取較多候選，交給 Reranker 後再取 Top-K
+        $topK = $rerank ? max($finalTopK, $candidates) : $finalTopK;
         $threshold = $options->applyThreshold ? $options->scoreThreshold ?? $this->threshold($model) : null;
 
         $dense = [];
@@ -79,7 +88,8 @@ class RetrieverService
         $gated = $threshold !== null && $dense === [] && $exact === []
             && ! ($mode === RetrievalMode::Keyword && $policy === KeywordOnlyPolicy::Allow && $keyword !== []);
         if ($gated || $eligible === []) {
-            return new RetrievalResult([], $model, $topK, $threshold, $unfilteredTopScore, $denseTopScore, $mode);
+            // 資料不足：不呼叫 Reranker，也不會呼叫 LLM
+            return new RetrievalResult([], $model, $finalTopK, $threshold, $unfilteredTopScore, $denseTopScore, $mode);
         }
 
         $rrf = $this->fusion->fuse(['dense' => array_keys($dense), 'keyword' => array_keys($keyword), 'exact' => array_keys($exact)], $this->rrfK);
@@ -105,10 +115,19 @@ class RetrieverService
                 $keyword[$id] ?? null,
                 isset($exact[$id]),
                 $mode === RetrievalMode::Dense ? null : $rrf[$id],
+                count($chunks) + 1,
             );
         }
 
-        return new RetrievalResult($chunks, $model, $topK, $threshold, $unfilteredTopScore, $denseTopScore, $mode);
+        if (! $rerank || $chunks === []) {
+            return new RetrievalResult(array_slice($chunks, 0, $finalTopK), $model, $finalTopK, $threshold, $unfilteredTopScore, $denseTopScore, $mode);
+        }
+
+        // 只重排前 N 筆候選；評估時 Top-K（20）大於候選數，其餘維持第一階段的順序接在後面
+        $outcome = $this->rerankStage->rerank($query, array_slice($chunks, 0, $candidates), min($finalTopK, $candidates), $options->rerankKeepExact ?? $this->rerankKeepExact, $options->rerankPrefixMetadata ?? $this->rerankPrefixMetadata);
+        $final = array_slice(array_merge($outcome->chunks, array_slice($chunks, $candidates)), 0, $finalTopK);
+
+        return new RetrievalResult($final, $model, $finalTopK, $threshold, $unfilteredTopScore, $denseTopScore, $mode, $outcome->reranked, $outcome->latencyMs, $outcome->degraded);
     }
 
     /** 設定檔中該模型的門檻；沒有設定時為 null */

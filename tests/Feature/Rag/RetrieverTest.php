@@ -97,7 +97,7 @@ class RetrieverTest extends TestCase
         $this->fakeQuery([$this->point(0.6773)]);
 
         $this->assertEquals(
-            [new RetrievedChunk($this->chunkId, DocumentChunk::find($this->chunkId)->document_id, '員工管理辦法.pdf', '第十二條', 2, 3, '員工年度特別休假未休畢者，得遞延至次一年度。', 0.6773, denseRank: 1, denseScore: 0.6773)],
+            [new RetrievedChunk($this->chunkId, DocumentChunk::find($this->chunkId)->document_id, '員工管理辦法.pdf', '第十二條', 2, 3, '員工年度特別休假未休畢者，得遞延至次一年度。', 0.6773, denseRank: 1, denseScore: 0.6773, retrievalRank: 1)],
             $this->retrieve()->chunks,
         );
     }
@@ -142,7 +142,7 @@ class RetrieverTest extends TestCase
 
         $this->artisan('rag:search', ['query' => '我的假沒休完怎麼辦？'])
             ->expectsOutputToContain('門檻：> 0.5')
-            ->expectsTable(['#', '分數', 'Dense', '關鍵字', '精確', '檔名', 'section', '頁碼', '內容開頭'], [[1, '0.6773', '1（0.6773）', '—', '', '員工管理辦法.pdf', '第十二條', '2–3', self::PAYLOAD['content']]])
+            ->expectsTable(['#', '分數', '候選', '重排', 'Dense', '關鍵字', '精確', '檔名', 'section', '頁碼', '內容開頭'], [[1, '0.6773', 1, '—', '1（0.6773）', '—', '', '員工管理辦法.pdf', '第十二條', '2–3', self::PAYLOAD['content']]])
             ->assertSuccessful();
     }
 

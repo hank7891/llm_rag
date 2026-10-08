@@ -15,5 +15,9 @@ final readonly class RetrieveOptions
         public bool $applyThreshold = true,
         public ?RetrievalMode $mode = null,
         public ?KeywordOnlyPolicy $keywordOnlyPolicy = null,
+        public ?bool $rerank = null,
+        public ?int $rerankCandidates = null,
+        public ?bool $rerankKeepExact = null,
+        public ?bool $rerankPrefixMetadata = null,
     ) {}
 }
