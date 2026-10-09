@@ -12,34 +12,46 @@ use Illuminate\Support\Facades\DB;
 
 class ConversationRepository
 {
-    public function create(): Conversation
+    public function create(string $provider): Conversation
     {
-        return Conversation::create();
+        return Conversation::create(['provider' => $provider]);
     }
 
-    public function exists(int $id): bool
+    public function find(int $id): ?Conversation
     {
-        return Conversation::whereKey($id)->exists();
+        return Conversation::find($id);
     }
 
     /**
-     * 最近 N 輪（由舊到新）。一輪 = 使用者訊息 + 其後的助理訊息；沒有回答的問題（例如回答時發生錯誤）不算一輪。
+     * 最近 N 輪（由舊到新）。一輪 = 使用者訊息 + 其後的助理訊息；沒有回答的問題（例如回答時發生錯誤）不算一輪，
+     * 中斷（interrupted）的半截回答也不算，不能進入下一輪的歷史。
      *
      * @return list<Turn>
      */
     public function recentTurns(int $conversationId, int $limit): array
     {
-        $messages = ConversationMessage::where('conversation_id', $conversationId)->orderByDesc('id')->limit($limit * 2 + 1)->get()->reverse()->values();
-
         $turns = [];
-        foreach ($messages as $i => $message) {
-            $next = $messages[$i + 1] ?? null;
-            if ($message->role_key === ConversationRole::User && $next?->role_key === ConversationRole::Assistant) {
-                $turns[] = new Turn($message->content, $next->content);
+        $assistant = null;
+
+        // 由新到舊逐筆讀取，湊滿 N 輪就停；中斷的輪次不算，所以不能用固定的筆數上限
+        foreach (ConversationMessage::where('conversation_id', $conversationId)->lazyByIdDesc(20) as $message) {
+            if (count($turns) >= $limit) {
+                break;
             }
+
+            if ($message->role_key === ConversationRole::Assistant) {
+                $assistant = $message;
+
+                continue;
+            }
+
+            if ($assistant !== null && $assistant->status_key !== AnswerStatus::Interrupted) {
+                $turns[] = new Turn($message->content, $assistant->content);
+            }
+            $assistant = null;
         }
 
-        return array_slice($turns, -$limit);
+        return array_reverse($turns);
     }
 
     /** 一問一答寫在同一個 Transaction，不會只留下半輪 */

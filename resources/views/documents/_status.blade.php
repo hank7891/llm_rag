@@ -11,7 +11,7 @@
     ];
 @endphp
 <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $colors[$status->value] }}">
-    @if (in_array($status->value, ['uploaded', 'parsing', 'chunking', 'indexing'], true))
+    @if ($status->isProcessing())
         <span class="size-1.5 animate-pulse rounded-full bg-current"></span>
     @endif
     {{ $status->label() }}

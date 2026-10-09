@@ -141,6 +141,9 @@ return [
         // 未指定時使用 config/llm.php 的 chat.default
         'default_provider' => env('RAG_ANSWER_PROVIDER'),
 
+        // 串流問答的執行時間上限（秒）。必須大於「改寫逾時 + 回答串流期限」：Ollama 為 120 + 300 秒
+        'stream_time_limit' => (int) env('RAG_STREAM_TIME_LIMIT', 600),
+
         // 規則與資料分開：System Prompt 只放規則，參考資料放在 user 訊息。
         // 實驗時可用環境變數指定其他版本（resources/ 下的相對路徑），例如 Ch10 比較的 prompts/rag-answer-v1.md
         'system_prompt' => resource_path(env('RAG_ANSWER_SYSTEM_PROMPT', 'prompts/rag-answer.md')),

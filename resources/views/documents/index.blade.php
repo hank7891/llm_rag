@@ -2,15 +2,17 @@
 
 @section('title', '文件列表')
 
+@push('scripts')
+    @vite('resources/js/documents.js')
+@endpush
+
 @section('content')
     <div class="mb-6 flex items-end justify-between">
         <div>
             <h1 class="text-2xl font-semibold text-slate-900">文件列表</h1>
             <p class="mt-1 text-sm text-slate-500">
                 上傳後在背景解析；需另開終端機執行 <code class="rounded bg-slate-100 px-1.5 py-0.5 text-xs">php artisan queue:listen</code>。
-                @if ($autoRefresh)
-                    <span class="text-amber-700">有文件處理中，每 3 秒自動更新。</span>
-                @endif
+                <span id="polling-note" class="hidden text-amber-700">有文件處理中，每 3 秒檢查一次狀態。</span>
             </p>
         </div>
         <a href="{{ route('documents.create') }}" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">上傳文件</a>
@@ -29,14 +31,15 @@
                         <th class="px-4 py-3 font-medium">檔名</th>
                         <th class="px-4 py-3 font-medium">狀態</th>
                         <th class="px-4 py-3 text-right font-medium whitespace-nowrap">頁數</th>
+                        <th class="px-4 py-3 text-right font-medium whitespace-nowrap">Chunk</th>
                         <th class="px-4 py-3 text-right font-medium">大小</th>
                         <th class="px-4 py-3 font-medium">上傳時間</th>
                         <th class="px-4 py-3"></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100">
+                <tbody class="divide-y divide-slate-100" id="document-rows" data-statuses-url="{{ route('documents.statuses') }}">
                     @foreach ($documents as $document)
-                        <tr class="align-top">
+                        <tr class="align-top" data-document-id="{{ $document->id }}" data-status="{{ $document->status_key->value }}" data-processing="{{ $document->status_key->isProcessing() ? '1' : '0' }}">
                             <td class="px-4 py-3 text-slate-400">{{ $document->id }}</td>
                             <td class="px-4 py-3">
                                 <div class="font-medium text-slate-900">{{ $document->name }}</div>
@@ -50,11 +53,18 @@
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap">@include('documents._status', ['status' => $document->status_key])</td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ $document->page_count ?? '—' }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums">{{ $document->chunks_count ?: '—' }}</td>
                             <td class="px-4 py-3 text-right whitespace-nowrap tabular-nums text-slate-500">{{ Illuminate\Support\Number::fileSize($document->size) }}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-slate-500">{{ $document->created_at->format('Y-m-d H:i') }}</td>
                             <td class="px-4 py-3 text-right whitespace-nowrap">
                                 @if ($document->status_key->hasPages())
                                     <a href="{{ route('documents.show', $document) }}" class="text-indigo-600 hover:underline">逐頁檢視</a>
+                                @endif
+                                @if ($document->status_key === App\Documents\DocumentStatus::Indexed)
+                                    <form method="POST" action="{{ route('documents.reindex', $document) }}" class="ml-3 inline">
+                                        @csrf
+                                        <button class="text-slate-500 hover:text-slate-900" title="只重建向量索引，不重新解析與切段">重新索引</button>
+                                    </form>
                                 @endif
                                 @if ($document->status_key->canReprocess())
                                     <form method="POST" action="{{ route('documents.reprocess', $document) }}" class="ml-3 inline">
@@ -63,8 +73,9 @@
                                     </form>
                                 @endif
                                 @if ($document->status_key->canDelete())
+                                    {{-- 確認文字放在 data 屬性、由 JS 以純文字讀取：檔名寫進 onsubmit 的 JS 字串會被 HTML 實體還原，造成 XSS --}}
                                     <form method="POST" action="{{ route('documents.destroy', $document) }}" class="ml-3 inline"
-                                        onsubmit="return confirm('確定要刪除「{{ $document->name }}」？文件、切段與向量索引都會一併刪除。')">
+                                        data-confirm="確定要刪除「{{ $document->name }}」？文件、切段與向量索引都會一併刪除。">
                                         @csrf
                                         @method('DELETE')
                                         <button class="text-rose-600 hover:text-rose-800">刪除</button>

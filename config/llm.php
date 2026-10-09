@@ -26,6 +26,13 @@ return [
             'fake' => FakeChatProvider::class,
         ],
 
+        // 介面顯示用：名稱與是否在本機執行。local = false 代表問題、對話與參考資料會送到該雲端供應商
+        'labels' => [
+            'ollama' => ['label' => 'Ollama', 'local' => true],
+            'openai' => ['label' => 'OpenAI', 'local' => false],
+            'gemini' => ['label' => 'Gemini', 'local' => false],
+        ],
+
     ],
 
     'rerank' => [

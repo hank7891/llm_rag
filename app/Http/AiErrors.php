@@ -33,6 +33,16 @@ final class AiErrors
         LlmResponseFormatException::class => [502, 'invalid_provider_response'],
     ];
 
+    /** @var array<string, string> 錯誤類型 → 給使用者看的訊息（串流的 error 事件用，不含上游原始訊息與內部位址） */
+    private const USER_MESSAGES = [
+        'rate_limited' => '模型服務目前請求過多，請稍後再試。',
+        'provider_unavailable' => '連不上模型服務，請確認服務是否啟動。',
+        'provider_timeout' => '模型回應逾時，請稍後再試。',
+        'provider_rejected' => '模型服務拒絕了這次請求。',
+        'provider_error' => '模型服務發生錯誤，請稍後再試。',
+        'invalid_provider_response' => '模型服務的回應格式不正確。',
+    ];
+
     /** @return array{int, string}|null 不屬於 AI 例外時回傳 null，交給 Laravel 預設處理 */
     public static function classify(Throwable $e): ?array
     {
@@ -43,6 +53,18 @@ final class AiErrors
     public static function body(Throwable $e): array
     {
         return ['type' => self::classify($e)[1] ?? 'internal_error', 'message' => $e->getMessage()];
+    }
+
+    /**
+     * 給終端使用者的錯誤：只有錯誤類型與固定訊息。完整的例外訊息只寫進 log。
+     *
+     * @return array{type: string, message: string}
+     */
+    public static function publicBody(Throwable $e): array
+    {
+        $type = self::classify($e)[1] ?? 'internal_error';
+
+        return ['type' => $type, 'message' => self::USER_MESSAGES[$type] ?? '系統發生錯誤，請稍後再試。'];
     }
 
     public static function render(Throwable $e): ?JsonResponse

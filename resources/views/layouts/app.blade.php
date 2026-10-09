@@ -3,11 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    @if ($autoRefresh ?? false)
-        <meta http-equiv="refresh" content="3">
-    @endif
     <title>@yield('title') · 內部知識庫</title>
     @vite(['resources/css/app.css'])
+    @stack('scripts')
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-800 antialiased">
     <header class="border-b border-slate-200 bg-white">
@@ -16,6 +14,7 @@
             <nav class="flex gap-6 text-sm">
                 <a href="{{ route('documents.index') }}" class="{{ request()->routeIs('documents.index', 'documents.show') ? 'text-indigo-600 font-medium' : 'text-slate-500 hover:text-slate-900' }}">文件列表</a>
                 <a href="{{ route('documents.create') }}" class="{{ request()->routeIs('documents.create') ? 'text-indigo-600 font-medium' : 'text-slate-500 hover:text-slate-900' }}">上傳文件</a>
+                <a href="{{ route('knowledge.chat') }}" class="{{ request()->routeIs('knowledge.chat') ? 'text-indigo-600 font-medium' : 'text-slate-500 hover:text-slate-900' }}">知識問答</a>
             </nav>
         </div>
     </header>

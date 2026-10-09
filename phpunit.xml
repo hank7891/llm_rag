@@ -42,6 +42,7 @@
         <env name="RAG_CONVERSATION_ENABLED" value="true"/>
         <env name="RAG_CONVERSATION_WINDOW_TURNS" value="5"/>
         <env name="RAG_CONVERSATION_HISTORY_BUDGET_CHARS" value="1500"/>
+        <env name="RAG_STREAM_TIME_LIMIT" value="600"/>
         <env name="RAG_REWRITE_PROVIDER" value="follow"/>
         <env name="RAG_REWRITE_OLLAMA_MODEL" value=""/>
         <env name="RAG_REWRITE_OLLAMA_TIMEOUT" value="120"/>

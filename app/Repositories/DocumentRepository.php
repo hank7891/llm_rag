@@ -34,7 +34,19 @@ class DocumentRepository
 
     public function paginate(int $perPage = 20): LengthAwarePaginator
     {
-        return Document::query()->latest('id')->paginate($perPage);
+        return Document::query()->withCount('chunks')->latest('id')->paginate($perPage);
+    }
+
+    /** @return array<int, string> 文件 id → 狀態值（列表頁輪詢用） */
+    public function statuses(array $ids): array
+    {
+        return Document::query()->whereKey($ids)->pluck('status_key', 'id')->map(fn ($status) => $status->value)->all();
+    }
+
+    /** @return list<string> 與指定文件內容相同（sha256）的其他文件名稱 */
+    public function namesWithSameContent(Document $document): array
+    {
+        return Document::query()->where('sha256', $document->sha256)->whereKeyNot($document->id)->orderBy('id')->pluck('name')->all();
     }
 
     /**

@@ -3,8 +3,11 @@
 namespace App\Rag\Answer;
 
 use App\Ai\Chat\ChatService;
+use App\Ai\Chat\DTO\ChatResult;
+use App\Ai\Chat\DTO\FinishReason;
 use App\Ai\Chat\DTO\Message;
 use App\Ai\Chat\DTO\Role;
+use App\Ai\Exceptions\LlmResponseFormatException;
 use App\Rag\Citation\CitationFormatter;
 use App\Rag\Citation\CitationResolver;
 use App\Rag\Conversation\HistoryWindow;
@@ -21,6 +24,8 @@ use Throwable;
 /**
  * 基本 RAG：檢索 → 沒有候選就直接回答資料不足 → 組參考資料 → LLM 回答。
  * 只依賴 RetrieverService 與 ChatService，不知道底層是哪個向量資料庫或供應商。
+ *
+ * 串流與非串流共用同一個流程：傳入 RagProgressListener 時逐階段通知、回答改用串流，產出的 RagAnswer 欄位與規則完全相同。
  */
 class RagAnswerService
 {
@@ -44,10 +49,11 @@ class RagAnswerService
         private readonly int $windowTurns,
     ) {}
 
-    public function answer(string $question, AnswerOptions $options = new AnswerOptions): RagAnswer
+    public function answer(string $question, AnswerOptions $options = new AnswerOptions, ?RagProgressListener $listener = null): RagAnswer
     {
-        [$conversationId, $history] = $this->conversation($options);
-        $answer = $this->generate($question, $options, $conversationId, $history);
+        [$conversationId, $history, $provider] = $this->conversation($options);
+        $listener?->conversation($conversationId);
+        $answer = $this->generate($question, $provider, $conversationId, $history, $listener);
 
         if ($conversationId !== null) {
             // 保存原始回答（含 [n]）；組歷史時才由 HistoryWindow 移除編號
@@ -60,33 +66,43 @@ class RagAnswerService
     }
 
     /**
-     * 決定這次問答屬於哪個對話與歷史。對話紀錄存在 server 端：Client 只帶 conversation_id，不能自行偽造 assistant 訊息。
+     * 決定這次問答屬於哪個對話、歷史與回答 Provider。對話紀錄存在 server 端：Client 只帶 conversation_id，不能自行偽造 assistant 訊息。
+     * Provider 在建立對話時記下，同一段對話不可中途更換（改寫跟隨回答 Provider，換了等於換改寫模型與資料外送對象）。
      *
-     * @return array{?int, list<Turn>}
+     * @return array{?int, list<Turn>, string}
      */
     private function conversation(AnswerOptions $options): array
     {
+        $provider = $options->provider ?? $this->defaultProvider ?? $this->chat->defaultProvider();
+
         if (! $this->conversationEnabled) {
-            return [null, []];
+            return [null, [], $provider];
         }
 
         if ($options->history !== null) {
-            return [null, $this->windowed($options->history, null)];
+            return [null, $this->windowed($options->history, null), $provider];
         }
 
         if ($options->conversationId === null && $options->source === QuerySource::Eval) {
-            return [null, []];
+            return [null, [], $provider];
         }
 
         if ($options->conversationId === null) {
-            return [$this->conversations->create()->id, []];
+            return [$this->conversations->create($provider)->id, [], $provider];
         }
 
-        if (! $this->conversations->exists($options->conversationId)) {
-            throw new InvalidArgumentException("Conversation [{$options->conversationId}] not found.");
+        $conversation = $this->conversations->find($options->conversationId)
+            ?? throw new InvalidArgumentException("Conversation [{$options->conversationId}] not found.");
+
+        // Ch13 建立的對話沒有記錄 Provider，不限制
+        if ($conversation->provider !== null) {
+            if ($options->provider !== null && $options->provider !== $conversation->provider) {
+                throw new InvalidArgumentException("Conversation [{$conversation->id}] uses provider [{$conversation->provider}]; start a new conversation to switch providers.");
+            }
+            $provider = $conversation->provider;
         }
 
-        return [$options->conversationId, $this->windowed($this->conversations->recentTurns($options->conversationId, $this->windowTurns), $options->conversationId)];
+        return [$conversation->id, $this->windowed($this->conversations->recentTurns($conversation->id, $this->windowTurns), $conversation->id), $provider];
     }
 
     /**
@@ -113,16 +129,18 @@ class RagAnswerService
     }
 
     /** @param list<Turn> $history 已經過 Sliding Window（最近 N 輪、移除編號、長度預算） */
-    private function generate(string $question, AnswerOptions $options, ?int $conversationId, array $history): RagAnswer
+    private function generate(string $question, string $provider, ?int $conversationId, array $history, ?RagProgressListener $listener): RagAnswer
     {
-        $provider = $options->provider ?? $this->defaultProvider ?? $this->chat->defaultProvider();
-
         // 錯誤發生在檢索之前：追問先改寫成獨立問題，Dense、關鍵字、Reranker 一律使用改寫後的問題（第一輪不改寫）
+        $listener?->stage(RagStage::Rewriting);
         $rewrite = $this->rewriter->rewrite($question, $history, $provider);
+        $listener?->rewrite($rewrite);
 
+        $listener?->stage(RagStage::Retrieving);
         $startedAt = hrtime(true);
         $retrieval = $this->retriever->retrieve($rewrite->question, new RetrieveOptions(topK: $this->topK));
         $retrievalMs = $this->elapsedMs($startedAt);
+        $listener?->retrieval($retrieval);
 
         // 第一道防線：沒有候選通過門檻就不呼叫 LLM，模型沒有機會依自己的記憶硬湊答案，也省下時間與成本
         if (! $retrieval->hasCandidates()) {
@@ -138,9 +156,15 @@ class RagAnswerService
             new Message(Role::User, "<reference>\n{$context->text}\n</reference>\n\n問題：{$question}"),
         ];
 
+        $listener?->stage(RagStage::Generating);
         $startedAt = hrtime(true);
-        $result = $this->chat->chat($messages, provider: $provider);
+        $result = $listener === null ? $this->chat->chat($messages, provider: $provider) : $this->streamed($messages, $provider, $listener);
         $llmMs = $this->elapsedMs($startedAt);
+
+        if (is_string($result)) {
+            return new RagAnswer($result, AnswerStatus::Interrupted, true, $context->references, $context->droppedChunks, $provider, null, null, $retrievalMs, $llmMs, $retrieval, $messages,
+                rawAnswer: $result, conversationId: $conversationId, originalQuestion: $question, rewrite: $rewrite, historyTurns: count($history));
+        }
 
         $status = $this->isInsufficient($result->content) ? AnswerStatus::InsufficientByLlm : AnswerStatus::Answered;
         // 來源一律由程式依編號對照表與 MySQL 產生；資料不足的回答不顯示來源
@@ -171,6 +195,36 @@ class RagAnswerService
             $rewrite,
             count($history),
         );
+    }
+
+    /**
+     * 以串流取得回答，逐段交給 Listener；最後一段（帶 usage）組回與非串流相同的 ChatResult。
+     * 呼叫端中斷時停止讀取（Generator 結束後連線關閉，供應商停止生成），回傳目前收到的部分文字。
+     *
+     * @param  list<Message>  $messages
+     */
+    private function streamed(array $messages, string $provider, RagProgressListener $listener): ChatResult|string
+    {
+        $content = '';
+
+        foreach ($this->chat->stream($messages, provider: $provider) as $chunk) {
+            $content .= $chunk->delta;
+
+            if ($chunk->delta !== '') {
+                $listener->delta($chunk->delta);
+            }
+
+            if ($chunk->usage !== null) {
+                return new ChatResult($content, $chunk->usage, $chunk->model ?? $provider, $chunk->finishReason ?? FinishReason::Other, $chunk->inputTruncated);
+            }
+
+            // 斷線要等寫出資料後才偵測得到，所以在送出 delta 之後檢查
+            if ($listener->cancelled()) {
+                return $content;
+            }
+        }
+
+        throw new LlmResponseFormatException("[{$provider}] Stream ended without a final chunk.");
     }
 
     /**

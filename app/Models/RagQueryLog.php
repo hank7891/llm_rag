@@ -25,6 +25,9 @@ use Illuminate\Database\Eloquent\Model;
  * @property int|null $input_tokens
  * @property int|null $output_tokens
  * @property int $retrieval_ms
+ * @property bool $reranked
+ * @property bool $rerank_degraded
+ * @property int|null $rerank_ms
  * @property int|null $llm_ms
  */
 class RagQueryLog extends Model
@@ -34,7 +37,7 @@ class RagQueryLog extends Model
 
     protected $fillable = [
         'conversation_id', 'question', 'rewritten_question', 'rewrite_status_key', 'rewrite_ms', 'top1_score', 'score_threshold', 'passed_count', 'status_key', 'source_key', 'llm_called', 'citation_count', 'invalid_ref_count', 'uncited', 'embedding_model',
-        'provider', 'model', 'input_tokens', 'output_tokens', 'retrieval_ms', 'llm_ms', 'created_at',
+        'provider', 'model', 'input_tokens', 'output_tokens', 'retrieval_ms', 'reranked', 'rerank_degraded', 'rerank_ms', 'llm_ms', 'created_at',
     ];
 
     protected function casts(): array
@@ -55,6 +58,9 @@ class RagQueryLog extends Model
             'input_tokens' => 'integer',
             'output_tokens' => 'integer',
             'retrieval_ms' => 'integer',
+            'reranked' => 'boolean',
+            'rerank_degraded' => 'boolean',
+            'rerank_ms' => 'integer',
             'llm_ms' => 'integer',
             'created_at' => 'datetime',
         ];

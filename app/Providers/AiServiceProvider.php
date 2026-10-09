@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Ai\Chat\ChatProviderCatalog;
 use App\Ai\Chat\ChatService;
 use App\Ai\Chat\Providers\GeminiProvider;
 use App\Ai\Chat\Providers\OllamaProvider;
@@ -24,6 +25,12 @@ class AiServiceProvider extends ServiceProvider
             $app['config']->get('llm.chat.providers', []),
             $app['config']->get('llm.chat.default'),
             $app['log'],
+        ));
+
+        $this->app->singleton(ChatProviderCatalog::class, fn ($app) => new ChatProviderCatalog(
+            collect($app['config']->get('llm.chat.labels', []))
+                ->map(fn (array $label, string $name) => [...$label, 'model' => $app['config']->get("llm.{$name}.model")])
+                ->all(),
         ));
 
         $this->app->singleton(EmbeddingModels::class, fn ($app) => new EmbeddingModels($app['config']->get('llm.embedding.models', [])));

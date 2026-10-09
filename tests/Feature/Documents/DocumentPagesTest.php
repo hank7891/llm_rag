@@ -3,6 +3,7 @@
 namespace Tests\Feature\Documents;
 
 use App\Documents\DocumentStatus;
+use App\Jobs\IndexDocumentJob;
 use App\Jobs\ParseDocumentJob;
 use App\Models\Document;
 use App\Repositories\DocumentPageRepository;
@@ -151,13 +152,67 @@ class DocumentPagesTest extends TestCase
         $this->get(route('documents.index'))->assertSee("與 #{$first->id} 內容相同")->assertSee("與 #{$second->id} 內容相同");
     }
 
-    public function test_index_auto_refreshes_only_while_processing(): void
+    /** @return array<string, array{DocumentStatus, string}> */
+    public static function pollingStatuses(): array
     {
-        $this->document(DocumentStatus::Parsed);
-        $this->get(route('documents.index'))->assertDontSee('http-equiv="refresh"', false);
+        return [
+            '解析中要輪詢' => [DocumentStatus::Parsing, '1'],
+            'Job 之間的 parsed 也要輪詢' => [DocumentStatus::Parsed, '1'],
+            '索引完成不輪詢' => [DocumentStatus::Indexed, '0'],
+            '失敗不輪詢' => [DocumentStatus::Failed, '0'],
+        ];
+    }
 
-        $this->document(DocumentStatus::Parsing);
-        $this->get(route('documents.index'))->assertSee('http-equiv="refresh"', false);
+    #[DataProvider('pollingStatuses')]
+    public function test_index_marks_rows_to_poll_only_while_processing(DocumentStatus $status, string $processing): void
+    {
+        $document = $this->document($status);
+
+        $this->get(route('documents.index'))->assertSee("data-document-id=\"{$document->id}\" data-status=\"{$status->value}\" data-processing=\"{$processing}\"", false);
+    }
+
+    public function test_statuses_endpoint_returns_only_requested_documents(): void
+    {
+        $parsing = $this->document(DocumentStatus::Parsing);
+        $this->document(DocumentStatus::Indexed, 'b');
+
+        $this->getJson(route('documents.statuses', ['ids' => [$parsing->id]]))->assertExactJson([(string) $parsing->id => 'parsing']);
+    }
+
+    public function test_delete_confirmation_does_not_put_file_name_into_javascript(): void
+    {
+        $document = $this->document(DocumentStatus::Indexed);
+        $document->forceFill(['name' => "a');alert(1);//.pdf"])->save();
+
+        $this->get(route('documents.index'))
+            ->assertDontSee('onsubmit', false)
+            ->assertSee('data-confirm="確定要刪除「a&#039;);alert(1);//.pdf」', false);
+    }
+
+    public function test_indexed_document_can_be_reindexed(): void
+    {
+        $document = $this->document(DocumentStatus::Indexed);
+
+        $this->post(route('documents.reindex', $document))->assertRedirect();
+
+        Queue::assertPushed(IndexDocumentJob::class, fn (IndexDocumentJob $job) => $job->documentId === $document->id);
+    }
+
+    public function test_processing_document_cannot_be_reindexed(): void
+    {
+        $document = $this->document(DocumentStatus::Parsing);
+
+        $this->post(route('documents.reindex', $document))->assertSessionHas('error');
+
+        Queue::assertNotPushed(IndexDocumentJob::class);
+    }
+
+    public function test_upload_of_duplicate_content_names_existing_document(): void
+    {
+        $this->post(route('documents.store'), ['file' => $this->fixture('notice-utf8.txt')]);
+
+        $this->post(route('documents.store'), ['file' => $this->fixture('notice-utf8.txt', '另一個檔名.txt')])
+            ->assertSessionHas('success', fn (string $message) => str_contains($message, '內容與既有的「notice-utf8.txt」相同'));
     }
 
     // ---- 逐頁檢視 ----

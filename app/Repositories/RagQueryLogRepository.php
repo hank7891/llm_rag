@@ -5,9 +5,27 @@ namespace App\Repositories;
 use App\Models\RagQueryLog;
 use App\Rag\Answer\QuerySource;
 use App\Rag\Answer\RagAnswer;
+use Carbon\CarbonInterface;
 
 class RagQueryLogRepository
 {
+    /**
+     * 統計用（rag:stats）：指定期間的問答紀錄，可排除評估（eval）的提問。
+     *
+     * @param  list<QuerySource>  $excludeSources
+     * @return list<RagQueryLog>
+     */
+    public function between(?CarbonInterface $since, ?CarbonInterface $until, array $excludeSources = []): array
+    {
+        return RagQueryLog::query()
+            ->when($since, fn ($q) => $q->where('created_at', '>=', $since))
+            ->when($until, fn ($q) => $q->where('created_at', '<', $until))
+            ->when($excludeSources !== [], fn ($q) => $q->whereNotIn('source_key', array_map(fn (QuerySource $s) => $s->value, $excludeSources)))
+            ->orderBy('id')
+            ->get()
+            ->all();
+    }
+
     public function record(string $question, RagAnswer $answer, QuerySource $source): RagQueryLog
     {
         return RagQueryLog::create([
@@ -31,6 +49,9 @@ class RagQueryLogRepository
             'input_tokens' => $answer->usage?->inputTokens,
             'output_tokens' => $answer->usage?->outputTokens,
             'retrieval_ms' => $answer->retrievalMs,
+            'reranked' => $answer->retrieval->reranked,
+            'rerank_degraded' => $answer->retrieval->rerankDegraded,
+            'rerank_ms' => $answer->retrieval->rerankMs,
             'llm_ms' => $answer->llmMs,
             'created_at' => now(),
         ]);

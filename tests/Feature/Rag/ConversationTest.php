@@ -77,11 +77,11 @@ class ConversationTest extends TestCase
     }
 
     /** 建立一段已有一輪的對話（第一輪的回答含 [1]） */
-    private function conversationWithFirstTurn(): int
+    private function conversationWithFirstTurn(string $provider = 'fake'): int
     {
         $this->llm->answerReply = '特別休假依年資給予，服務滿二年以上未滿三年者十日 [1]。';
 
-        return $this->ask('公司的特休規定是什麼？')->conversationId;
+        return $this->ask('公司的特休規定是什麼？', provider: $provider)->conversationId;
     }
 
     // ---- 第一輪 ----
@@ -165,8 +165,8 @@ class ConversationTest extends TestCase
     #[DataProvider('followedProviders')]
     public function test_follow_uses_rewrite_settings_of_the_answer_provider_given_per_request(string $provider, array $providerOptions, int $timeout): void
     {
-        $id = $this->conversationWithFirstTurn();
         $this->routeProvidersToScript();
+        $id = $this->conversationWithFirstTurn($provider);
 
         $this->ask('那兩年年資呢？', $id, provider: $provider);
 
@@ -177,8 +177,8 @@ class ConversationTest extends TestCase
     public function test_blank_rewrite_model_uses_the_provider_default_model(): void
     {
         // phpunit.xml 的 RAG_REWRITE_OLLAMA_MODEL 為空字串：不能當成模型名稱送出
-        $id = $this->conversationWithFirstTurn();
         $this->routeProvidersToScript();
+        $id = $this->conversationWithFirstTurn('ollama');
 
         $this->ask('那兩年年資呢？', $id, provider: 'ollama');
 
@@ -187,9 +187,9 @@ class ConversationTest extends TestCase
 
     public function test_explicit_rewrite_provider_overrides_follow(): void
     {
-        $id = $this->conversationWithFirstTurn();
         $this->routeProvidersToScript();
         config()->set('rag.conversation.rewrite.provider', 'openai');
+        $id = $this->conversationWithFirstTurn('ollama');
 
         $this->ask('那兩年年資呢？', $id, provider: 'ollama');
 
@@ -198,8 +198,8 @@ class ConversationTest extends TestCase
 
     public function test_provider_without_rewrite_settings_falls_back_without_using_another_provider(): void
     {
-        $id = $this->conversationWithFirstTurn();
         $this->routeProvidersToScript();
+        $id = $this->conversationWithFirstTurn('gemini');
         Log::spy();
 
         $answer = $this->ask('那兩年年資呢？', $id, provider: 'gemini');
@@ -427,7 +427,7 @@ class ConversationTest extends TestCase
     public function test_repository_reads_turns_in_order_with_limit(): void
     {
         $repository = new ConversationRepository;
-        $id = $repository->create()->id;
+        $id = $repository->create('fake')->id;
         foreach (['一', '二', '三', '四'] as $n) {
             $repository->addExchange($id, "問題{$n}", "問題{$n}", RewriteStatus::Skipped, "回答{$n}", AnswerStatus::Answered);
         }

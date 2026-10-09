@@ -86,6 +86,12 @@ class QueryRewriter
             finishReason: $result->finishReason, provider: $provider);
     }
 
+    /** 這個 Provider 是否有改寫設定（沒有時追問一律以原問題檢索） */
+    public function supports(string $provider): bool
+    {
+        return isset($this->providers[$provider]);
+    }
+
     private function prompt(string $version): string
     {
         return file_get_contents("{$this->promptDirectory}/rag-rewrite-{$version}.md");

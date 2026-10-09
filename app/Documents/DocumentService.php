@@ -5,6 +5,7 @@ namespace App\Documents;
 use App\Documents\Exceptions\DocumentBusyException;
 use App\Documents\Exceptions\InvalidStatusTransitionException;
 use App\Documents\Exceptions\StaleDocumentStatusException;
+use App\Jobs\IndexDocumentJob;
 use App\Jobs\ParseDocumentJob;
 use App\Models\Document;
 use App\Rag\VectorStore\ChunkPurger;
@@ -57,6 +58,35 @@ class DocumentService
         $this->documents->transition($document, DocumentStatus::Uploaded, ['error_message' => null]);
 
         ParseDocumentJob::dispatch($document->id);
+    }
+
+    /**
+     * @param  list<int>  $ids
+     * @return array<int, string> 文件 id → 狀態值
+     */
+    public function statuses(array $ids): array
+    {
+        return $this->documents->statuses($ids);
+    }
+
+    /** @return list<string> */
+    public function namesWithSameContent(Document $document): array
+    {
+        return $this->documents->namesWithSameContent($document);
+    }
+
+    /**
+     * 只重建向量索引（例如 Qdrant 資料遺失或與 MySQL 不一致時），不重新解析與切段。
+     *
+     * @throws InvalidStatusTransitionException 文件目前的狀態不能建索引
+     */
+    public function reindex(Document $document): void
+    {
+        if (! $document->status_key->canReindex()) {
+            throw InvalidStatusTransitionException::between($document->id, $document->status_key, DocumentStatus::Indexing);
+        }
+
+        IndexDocumentJob::dispatch($document->id);
     }
 
     /**

@@ -72,6 +72,18 @@ enum DocumentStatus: string
         return in_array($this, [self::Parsed, self::Chunked, self::Indexed, self::Failed], true);
     }
 
+    /** 還在背景處理中（含 Job 之間的 parsed、chunked）：列表頁要持續輪詢 */
+    public function isProcessing(): bool
+    {
+        return ! in_array($this, [self::Indexed, self::Failed], true);
+    }
+
+    /** 可以只重建向量索引的狀態（不重新解析、切段） */
+    public function canReindex(): bool
+    {
+        return $this->canTransitionTo(self::Indexing);
+    }
+
     /** 可由使用者觸發重新處理的狀態 */
     public function canReprocess(): bool
     {

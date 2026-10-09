@@ -3,13 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Documents\DocumentService;
-use App\Documents\DocumentStatus;
 use App\Documents\Exceptions\DocumentBusyException;
 use App\Documents\Exceptions\InvalidStatusTransitionException;
 use App\Documents\Exceptions\StaleDocumentStatusException;
 use App\Http\Requests\UploadDocumentRequest;
 use App\Models\Document;
 use App\Rag\VectorStore\Exceptions\QdrantException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -22,14 +22,15 @@ class DocumentController extends Controller
     {
         [$documents, $duplicates] = $this->documents->paginateWithDuplicates();
 
-        return view('documents.index', [
-            'documents' => $documents,
-            'duplicates' => $duplicates,
-            // 有文件還在處理時，列表頁每幾秒自動重新整理，方便觀察狀態變化
-            'autoRefresh' => $documents->getCollection()->contains(
-                fn (Document $d) => in_array($d->status_key, [DocumentStatus::Uploaded, DocumentStatus::Parsing, DocumentStatus::Chunking, DocumentStatus::Indexing], true),
-            ),
-        ]);
+        return view('documents.index', ['documents' => $documents, 'duplicates' => $duplicates]);
+    }
+
+    /** 列表頁輪詢用：只回傳狀態，狀態有變化時前端才重新載入頁面 */
+    public function statuses(Request $request): JsonResponse
+    {
+        $ids = array_values(array_filter(array_map('intval', (array) $request->query('ids', []))));
+
+        return new JsonResponse($this->documents->statuses(array_slice($ids, 0, 100)));
     }
 
     public function create(): View
@@ -40,9 +41,10 @@ class DocumentController extends Controller
     public function store(UploadDocumentRequest $request): RedirectResponse
     {
         $document = $this->documents->upload($request->file('file'));
+        $same = $this->documents->namesWithSameContent($document);
 
         return redirect()->route('documents.index')
-            ->with('success', "已上傳「{$document->name}」，正在背景解析。");
+            ->with('success', "已上傳「{$document->name}」，正在背景解析。".($same === [] ? '' : '內容與既有的「'.implode('」、「', $same).'」相同。'));
     }
 
     public function show(Document $document, Request $request): View
@@ -70,6 +72,17 @@ class DocumentController extends Controller
         }
 
         return redirect()->route('documents.index')->with('success', "已刪除「{$document->name}」與它的向量索引。");
+    }
+
+    public function reindex(Document $document): RedirectResponse
+    {
+        try {
+            $this->documents->reindex($document);
+        } catch (InvalidStatusTransitionException) {
+            return back()->with('error', "「{$document->name}」目前的狀態無法重新索引，請重新整理頁面後再試。");
+        }
+
+        return back()->with('success', "已排入重新索引：「{$document->name}」。");
     }
 
     public function reprocess(Document $document): RedirectResponse
