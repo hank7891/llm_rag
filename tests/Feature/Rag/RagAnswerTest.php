@@ -207,7 +207,7 @@ class RagAnswerTest extends TestCase
         $this->fakeRetriever([]);
 
         $this->assertSame(
-            ['answer', 'status', 'citations', 'sources', 'warnings', 'llm_called', 'references', 'dropped_chunks', 'provider', 'model', 'finish_reason', 'usage', 'timing'],
+            ['answer', 'status', 'conversation_id', 'original_question', 'rewritten_question', 'rewrite_status', 'rewrite_called', 'rewrite_ms', 'history_turns', 'rewrite_usage', 'citations', 'sources', 'warnings', 'llm_called', 'references', 'dropped_chunks', 'provider', 'model', 'finish_reason', 'usage', 'timing'],
             array_keys($this->answer()->toArray()),
         );
     }

@@ -79,6 +79,53 @@ return [
 
     ],
 
+    'conversation' => [
+
+        // 多輪對話（Ch13）：檢索前先把追問改寫成獨立問題，對話紀錄以 Sliding Window 保留最近 N 輪。
+        // false 時忽略 conversation_id 與歷史，行為與 Ch12 的單輪問答相同
+        'enabled' => (bool) env('RAG_CONVERSATION_ENABLED', true),
+
+        // 保留最近幾輪（一輪 = 一問一答）。Ch13 實驗 4：3 輪時回指第 1 輪的追問會被對到 Window 中錯的輪次，且沒有任何錯誤訊號
+        'window_turns' => (int) env('RAG_CONVERSATION_WINDOW_TURNS', 5),
+
+        // 歷史的總長度上限（字元數）。歷史、參考資料（answer.context_budget_chars）、回答共用 num_ctx 8192；
+        // 超過時從最舊的一輪開始捨去。改寫與回答都套用
+        'history_budget_chars' => (int) env('RAG_CONVERSATION_HISTORY_BUDGET_CHARS', 1500),
+
+        'rewrite' => [
+            // 改寫用的 Chat Provider。follow：跟隨本次實際使用的回答 Provider（含 API 參數、rag:ask --provider 逐次指定的值），
+            // 改寫不會把對話送到回答流程以外的供應商；也可明確指定 providers 中的名稱覆寫
+            'provider' => env('RAG_REWRITE_PROVIDER', 'follow'),
+
+            // 改寫結果超過此長度視為失敗（多半是模型開始回答問題）
+            'max_chars' => (int) env('RAG_REWRITE_MAX_CHARS', 200),
+
+            // resources/prompts/rag-rewrite-{版本}.md。v1：照抄規範；v2：加上繁體中文、編號原樣保留、完整時原樣輸出、不帶入回答內容；
+            // v3：拿掉 v2 的括號例子（Ch13 實測 qwen3 會把例子詞「表單編號」抄進改寫結果）
+            'prompt_version' => env('RAG_REWRITE_PROMPT_VERSION', 'v3'),
+
+            // 各 Provider 的改寫設定（model 為 null 時使用 config/llm.php 中該 Provider 的模型）。
+            // 沒有登記的 Provider 不改寫：降級為原問題並寫 warning log，不改用另一家
+            'providers' => [
+                'ollama' => [
+                    'model' => env('RAG_REWRITE_OLLAMA_MODEL') ?: null,
+                    // Ch13 實測（M1）：qwen3 關閉思考時解不開「第一個問題」這類回指，開啟後 Recall@1 54% → 85%；
+                    // 代價是改寫 p50 約 28 秒、p95 約 70 秒，逾時要配合調大
+                    'timeout' => (int) env('RAG_REWRITE_OLLAMA_TIMEOUT', 120),
+                    'provider_options' => ['think' => (bool) env('RAG_REWRITE_OLLAMA_THINK', true)],
+                ],
+                'openai' => [
+                    'model' => env('RAG_REWRITE_OPENAI_MODEL') ?: null,
+                    'timeout' => (int) env('RAG_REWRITE_OPENAI_TIMEOUT', 15),
+                    'provider_options' => [],
+                ],
+                // 測試用（FakeChatProvider）
+                'fake' => ['model' => null, 'timeout' => 30, 'provider_options' => []],
+            ],
+        ],
+
+    ],
+
     'answer' => [
 
         // 送進 Context 的最多 Chunk 數。目前與 retrieval.top_k 相同；加入 Reranker 後會先取較多候選，再挑這個數量送給 LLM

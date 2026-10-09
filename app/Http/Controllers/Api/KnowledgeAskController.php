@@ -16,7 +16,7 @@ class KnowledgeAskController extends Controller
 {
     public function __invoke(AskKnowledgeRequest $request, RagAnswerService $rag): JsonResponse
     {
-        $answer = $rag->answer($request->validated('question'), new AnswerOptions($request->providerName(), QuerySource::Api));
+        $answer = $rag->answer($request->validated('question'), new AnswerOptions($request->providerName(), QuerySource::Api, $request->conversationId()));
 
         return new JsonResponse($answer->toArray(), options: JSON_UNESCAPED_UNICODE);
     }

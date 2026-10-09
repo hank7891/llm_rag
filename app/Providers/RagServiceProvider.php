@@ -10,6 +10,9 @@ use App\Rag\Answer\ReferenceContextBuilder;
 use App\Rag\Citation\CitationFormatter;
 use App\Rag\Citation\CitationParser;
 use App\Rag\Citation\CitationResolver;
+use App\Rag\Conversation\HistoryWindow;
+use App\Rag\Conversation\QueryRewriter;
+use App\Rag\Evaluation\ConversationEvaluator;
 use App\Rag\Retrieval\KeywordOnlyPolicy;
 use App\Rag\Retrieval\RankFusion;
 use App\Rag\Retrieval\RerankStage;
@@ -22,6 +25,7 @@ use App\Rag\VectorStore\CollectionManager;
 use App\Rag\VectorStore\CollectionResolver;
 use App\Rag\VectorStore\QdrantClient;
 use App\Rag\VectorStore\VectorSearcher;
+use App\Repositories\ConversationRepository;
 use App\Repositories\DocumentChunkRepository;
 use App\Repositories\KeywordSearchRepository;
 use App\Repositories\RagQueryLogRepository;
@@ -85,6 +89,35 @@ class RagServiceProvider extends ServiceProvider
             $app['config']->get('rag.citation.merge_same_source'),
         ));
 
+        $this->app->bind(HistoryWindow::class, fn ($app) => new HistoryWindow(
+            $app->make(CitationParser::class),
+            $app['config']->get('rag.conversation.window_turns'),
+            $app['config']->get('rag.conversation.history_budget_chars'),
+        ));
+
+        $this->app->bind(QueryRewriter::class, function ($app) {
+            $rewrite = $app['config']->get('rag.conversation.rewrite');
+
+            return new QueryRewriter(
+                $app->make(ChatService::class),
+                $app['log'],
+                resource_path('prompts'),
+                $rewrite['prompt_version'],
+                $rewrite['provider'],
+                $rewrite['providers'],
+                $rewrite['max_chars'],
+                $app['config']->get('rag.answer.insufficient_message'),
+            );
+        });
+
+        $this->app->bind(ConversationEvaluator::class, fn ($app) => new ConversationEvaluator(
+            $app->make(RetrieverService::class),
+            $app->make(QueryRewriter::class),
+            $app->make(RagAnswerService::class),
+            $app['config']->get('rag.conversation.window_turns'),
+            $app['config']->get('rag.conversation.history_budget_chars'),
+        ));
+
         $this->app->bind(RagAnswerService::class, function ($app) {
             $config = $app['config']->get('rag.answer');
 
@@ -102,6 +135,11 @@ class RagServiceProvider extends ServiceProvider
                 $app['log'],
                 $app->make(CitationResolver::class),
                 $app->make(CitationFormatter::class),
+                $app->make(ConversationRepository::class),
+                $app->make(HistoryWindow::class),
+                $app->make(QueryRewriter::class),
+                $app['config']->get('rag.conversation.enabled'),
+                $app['config']->get('rag.conversation.window_turns'),
             );
         });
     }

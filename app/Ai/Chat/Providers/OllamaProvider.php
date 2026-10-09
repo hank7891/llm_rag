@@ -118,7 +118,7 @@ class OllamaProvider implements ChatProviderInterface, EmbeddingProviderInterfac
 
     public function chat(array $messages, ChatOptions $options): ChatResult
     {
-        $json = LlmHttp::postJson(self::NAME, $this->request(), '/api/chat', $this->body($messages, $options, stream: false));
+        $json = LlmHttp::postJson(self::NAME, $this->request($options->timeout), '/api/chat', $this->body($messages, $options, stream: false));
 
         $finishReason = $this->finishReason($json);
         $content = JsonField::string(self::NAME, $json, 'message.content');
@@ -187,14 +187,14 @@ class OllamaProvider implements ChatProviderInterface, EmbeddingProviderInterfac
         throw new LlmResponseFormatException('[ollama] Stream ended before the done event.');
     }
 
-    private function request(): PendingRequest
+    private function request(?int $timeout = null): PendingRequest
     {
         return Http::baseUrl($this->config['base_url'])
             ->acceptJson()
             ->connectTimeout($this->config['connect_timeout'])
-            ->timeout($this->config['timeout'])
+            ->timeout($timeout ?? $this->config['timeout'])
             // 串流時 timeout 管不到 body 讀取，read_timeout 限制「單次讀取」最多等多久
-            ->withOptions(['read_timeout' => $this->config['timeout']]);
+            ->withOptions(['read_timeout' => $timeout ?? $this->config['timeout']]);
     }
 
     /** @param list<Message> $messages */
@@ -204,7 +204,8 @@ class OllamaProvider implements ChatProviderInterface, EmbeddingProviderInterfac
             'model' => $this->model($options),
             'messages' => array_map(fn (Message $m) => ['role' => $m->role->value, 'content' => $m->content], $messages),
             'stream' => $stream,
-            'think' => $this->config['think'],
+            // 可逐次覆寫：Ch13 的改寫固定 think = false（短任務，開思考會多好幾秒，還可能混入思考內容）
+            'think' => (bool) ($options->forProvider(self::NAME)['think'] ?? $this->config['think']),
             // false：超過 num_ctx 時回 HTTP 400（附精確 Token 數），而不是靜默截斷
             'truncate' => $this->truncate($options),
             'options' => array_filter([

@@ -11,7 +11,11 @@ class RagQueryLogRepository
     public function record(string $question, RagAnswer $answer, QuerySource $source): RagQueryLog
     {
         return RagQueryLog::create([
+            'conversation_id' => $answer->conversationId,
             'question' => $question,
+            'rewritten_question' => $answer->rewrite?->question,
+            'rewrite_status_key' => $answer->rewrite?->status,
+            'rewrite_ms' => $answer->rewrite?->latencyMs,
             'top1_score' => $answer->retrieval->topScore(),
             'score_threshold' => $answer->retrieval->scoreThreshold,
             'passed_count' => count($answer->retrieval->chunks),

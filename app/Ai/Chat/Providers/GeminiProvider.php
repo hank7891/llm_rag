@@ -32,7 +32,7 @@ class GeminiProvider implements ChatProviderInterface
 
     public function chat(array $messages, ChatOptions $options): ChatResult
     {
-        $json = LlmHttp::postJson(self::NAME, $this->request(), $this->model($options).':generateContent', $this->body($messages, $options));
+        $json = LlmHttp::postJson(self::NAME, $this->request($options->timeout), $this->model($options).':generateContent', $this->body($messages, $options));
 
         $finishReason = $this->finishReason($json);
         $content = $this->text($json);
@@ -92,7 +92,7 @@ class GeminiProvider implements ChatProviderInterface
         throw new LlmResponseFormatException('[gemini] Stream ended before a chunk with finishReason.');
     }
 
-    private function request(): PendingRequest
+    private function request(?int $timeout = null): PendingRequest
     {
         $apiKey = $this->config['api_key']
             ?: throw new LogicException('[gemini] No API key configured (GEMINI_API_KEY).');
@@ -102,9 +102,9 @@ class GeminiProvider implements ChatProviderInterface
             ->withHeaders(['x-goog-api-key' => $apiKey])
             ->acceptJson()
             ->connectTimeout($this->config['connect_timeout'])
-            ->timeout($this->config['timeout'])
+            ->timeout($timeout ?? $this->config['timeout'])
             // 串流時 timeout 管不到 body 讀取，read_timeout 限制「單次讀取」最多等多久
-            ->withOptions(['read_timeout' => $this->config['timeout']]);
+            ->withOptions(['read_timeout' => $timeout ?? $this->config['timeout']]);
     }
 
     private function model(ChatOptions $options): string

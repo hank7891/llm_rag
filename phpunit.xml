@@ -38,6 +38,18 @@
         <env name="RAG_RERANK_TIMEOUT" value="3"/>
         <env name="RAG_RETRIEVAL_MODE" value="hybrid"/>
         <env name="RAG_KEYWORD_ONLY_POLICY" value="exact_only"/>
+        <!-- Ch13 多輪對話：改寫使用 fake Provider，其餘固定為預設值 -->
+        <env name="RAG_CONVERSATION_ENABLED" value="true"/>
+        <env name="RAG_CONVERSATION_WINDOW_TURNS" value="5"/>
+        <env name="RAG_CONVERSATION_HISTORY_BUDGET_CHARS" value="1500"/>
+        <env name="RAG_REWRITE_PROVIDER" value="follow"/>
+        <env name="RAG_REWRITE_OLLAMA_MODEL" value=""/>
+        <env name="RAG_REWRITE_OLLAMA_TIMEOUT" value="120"/>
+        <env name="RAG_REWRITE_OLLAMA_THINK" value="true"/>
+        <env name="RAG_REWRITE_OPENAI_MODEL" value=""/>
+        <env name="RAG_REWRITE_OPENAI_TIMEOUT" value="15"/>
+        <env name="RAG_REWRITE_MAX_CHARS" value="200"/>
+        <env name="RAG_REWRITE_PROMPT_VERSION" value="v3"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>

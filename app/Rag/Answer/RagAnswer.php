@@ -7,6 +7,7 @@ use App\Ai\Chat\DTO\Message;
 use App\Ai\Chat\DTO\Usage;
 use App\Rag\Citation\Citation;
 use App\Rag\Citation\InvalidRef;
+use App\Rag\Conversation\RewriteResult;
 use App\Rag\Retrieval\RetrievalResult;
 
 /**
@@ -43,6 +44,10 @@ final readonly class RagAnswer
         public array $invalidRefs = [],
         public bool $uncited = false,
         public array $labels = [],
+        public ?int $conversationId = null,
+        public ?string $originalQuestion = null,
+        public ?RewriteResult $rewrite = null,
+        public int $historyTurns = 0,
     ) {}
 
     /** @return array<string, mixed> */
@@ -51,6 +56,16 @@ final readonly class RagAnswer
         return [
             'answer' => $this->answer,
             'status' => $this->status->value,
+            'conversation_id' => $this->conversationId,
+            'original_question' => $this->originalQuestion,
+            // 檢索用的問題：改寫成功時為改寫結果，否則為原問題
+            'rewritten_question' => $this->rewrite?->question,
+            'rewrite_status' => $this->rewrite?->status->value,
+            'rewrite_called' => $this->rewrite->called ?? false,
+            'rewrite_ms' => $this->rewrite?->latencyMs,
+            // 經過 Window 與 history_budget_chars 後實際送出的歷史輪數
+            'history_turns' => $this->historyTurns,
+            'rewrite_usage' => $this->rewrite?->usage === null ? null : ['input_tokens' => $this->rewrite->usage->inputTokens, 'output_tokens' => $this->rewrite->usage->outputTokens],
             'citations' => array_map(fn (Citation $c) => [
                 'ref' => $c->ref,
                 'label' => $this->labels[$c->ref] ?? null,

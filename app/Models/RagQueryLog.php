@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Rag\Answer\AnswerStatus;
 use App\Rag\Answer\QuerySource;
+use App\Rag\Conversation\RewriteStatus;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -32,7 +33,7 @@ class RagQueryLog extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'question', 'top1_score', 'score_threshold', 'passed_count', 'status_key', 'source_key', 'llm_called', 'citation_count', 'invalid_ref_count', 'uncited', 'embedding_model',
+        'conversation_id', 'question', 'rewritten_question', 'rewrite_status_key', 'rewrite_ms', 'top1_score', 'score_threshold', 'passed_count', 'status_key', 'source_key', 'llm_called', 'citation_count', 'invalid_ref_count', 'uncited', 'embedding_model',
         'provider', 'model', 'input_tokens', 'output_tokens', 'retrieval_ms', 'llm_ms', 'created_at',
     ];
 
@@ -43,6 +44,9 @@ class RagQueryLog extends Model
             'score_threshold' => 'float',
             'passed_count' => 'integer',
             'status_key' => AnswerStatus::class,
+            'rewrite_status_key' => RewriteStatus::class,
+            'rewrite_ms' => 'integer',
+            'conversation_id' => 'integer',
             'source_key' => QuerySource::class,
             'llm_called' => 'boolean',
             'citation_count' => 'integer',

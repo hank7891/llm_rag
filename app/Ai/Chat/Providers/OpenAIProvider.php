@@ -34,7 +34,7 @@ class OpenAIProvider implements ChatProviderInterface
 
     public function chat(array $messages, ChatOptions $options): ChatResult
     {
-        $json = LlmHttp::postJson(self::NAME, $this->request(), '/responses', $this->body($messages, $options, stream: false));
+        $json = LlmHttp::postJson(self::NAME, $this->request($options->timeout), '/responses', $this->body($messages, $options, stream: false));
 
         return $this->result($json, $options);
     }
@@ -90,7 +90,7 @@ class OpenAIProvider implements ChatProviderInterface
         throw new LlmResponseFormatException('[openai] Stream ended before the completed event.');
     }
 
-    private function request(): PendingRequest
+    private function request(?int $timeout = null): PendingRequest
     {
         $apiKey = $this->config['api_key']
             ?: throw new LogicException('[openai] No API key configured (OPENAI_API_KEY).');
@@ -99,9 +99,9 @@ class OpenAIProvider implements ChatProviderInterface
             ->withToken($apiKey)
             ->acceptJson()
             ->connectTimeout($this->config['connect_timeout'])
-            ->timeout($this->config['timeout'])
+            ->timeout($timeout ?? $this->config['timeout'])
             // 串流時 timeout 管不到 body 讀取，read_timeout 限制「單次讀取」最多等多久
-            ->withOptions(['read_timeout' => $this->config['timeout']]);
+            ->withOptions(['read_timeout' => $timeout ?? $this->config['timeout']]);
     }
 
     /** @param list<Message> $messages */

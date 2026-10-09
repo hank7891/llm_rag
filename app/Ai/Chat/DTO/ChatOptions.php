@@ -11,12 +11,14 @@ final readonly class ChatOptions
 {
     /**
      * @param  array<string, array<string, mixed>>  $providerOptions  provider 名稱 → 特有參數，例如 ['ollama' => ['num_ctx' => 4096]]
+     * @param  int|null  $timeout  非串流請求的總時間（秒）；null 使用 Provider 設定。Ch13 的改寫是短任務，逾時要比回答短
      */
     public function __construct(
         public ?string $model = null,
         public ?float $temperature = null,
         public ?int $maxTokens = null,
         public array $providerOptions = [],
+        public ?int $timeout = null,
     ) {}
 
     /** @return array<string, mixed> */

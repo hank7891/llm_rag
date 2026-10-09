@@ -126,6 +126,16 @@ class OllamaProviderTest extends TestCase
         Http::assertSent(fn (Request $request) => $request['think'] === true);
     }
 
+    public function test_think_can_be_overridden_per_request(): void
+    {
+        // Ch13 的改寫：設定開啟思考時，仍可逐次關閉
+        Http::fake([self::URL => Http::response($this->chatResponse())]);
+
+        $this->provider(['think' => true])->chat($this->messages(), new ChatOptions(providerOptions: ['ollama' => ['think' => false]]));
+
+        Http::assertSent(fn (Request $request) => $request['think'] === false);
+    }
+
     public function test_chat_options_map_to_ollama_names(): void
     {
         Http::fake([self::URL => Http::response($this->chatResponse())]);

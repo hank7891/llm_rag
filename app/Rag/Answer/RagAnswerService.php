@@ -7,9 +7,14 @@ use App\Ai\Chat\DTO\Message;
 use App\Ai\Chat\DTO\Role;
 use App\Rag\Citation\CitationFormatter;
 use App\Rag\Citation\CitationResolver;
+use App\Rag\Conversation\HistoryWindow;
+use App\Rag\Conversation\QueryRewriter;
+use App\Rag\Conversation\Turn;
 use App\Rag\Retrieval\RetrieveOptions;
 use App\Rag\Retrieval\RetrieverService;
+use App\Repositories\ConversationRepository;
 use App\Repositories\RagQueryLogRepository;
+use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -32,32 +37,104 @@ class RagAnswerService
         private readonly LoggerInterface $logger,
         private readonly CitationResolver $citations,
         private readonly CitationFormatter $formatter,
+        private readonly ConversationRepository $conversations,
+        private readonly HistoryWindow $window,
+        private readonly QueryRewriter $rewriter,
+        private readonly bool $conversationEnabled,
+        private readonly int $windowTurns,
     ) {}
 
     public function answer(string $question, AnswerOptions $options = new AnswerOptions): RagAnswer
     {
-        $answer = $this->generate($question, $options);
+        [$conversationId, $history] = $this->conversation($options);
+        $answer = $this->generate($question, $options, $conversationId, $history);
+
+        if ($conversationId !== null) {
+            // 保存原始回答（含 [n]）；組歷史時才由 HistoryWindow 移除編號
+            $this->conversations->addExchange($conversationId, $question, $answer->rewrite->question, $answer->rewrite->status, $answer->rawAnswer ?? $answer->answer, $answer->status);
+        }
+
         $this->record($question, $answer, $options->source);
 
         return $answer;
     }
 
-    private function generate(string $question, AnswerOptions $options): RagAnswer
+    /**
+     * 決定這次問答屬於哪個對話與歷史。對話紀錄存在 server 端：Client 只帶 conversation_id，不能自行偽造 assistant 訊息。
+     *
+     * @return array{?int, list<Turn>}
+     */
+    private function conversation(AnswerOptions $options): array
+    {
+        if (! $this->conversationEnabled) {
+            return [null, []];
+        }
+
+        if ($options->history !== null) {
+            return [null, $this->windowed($options->history, null)];
+        }
+
+        if ($options->conversationId === null && $options->source === QuerySource::Eval) {
+            return [null, []];
+        }
+
+        if ($options->conversationId === null) {
+            return [$this->conversations->create()->id, []];
+        }
+
+        if (! $this->conversations->exists($options->conversationId)) {
+            throw new InvalidArgumentException("Conversation [{$options->conversationId}] not found.");
+        }
+
+        return [$options->conversationId, $this->windowed($this->conversations->recentTurns($options->conversationId, $this->windowTurns), $options->conversationId)];
+    }
+
+    /**
+     * 套用 Sliding Window，並記錄 history_budget_chars 實際保留的輪數（長回答會讓保留的輪數少於 window_turns）。
+     *
+     * @param  list<Turn>  $turns
+     * @return list<Turn>
+     */
+    private function windowed(array $turns, ?int $conversationId): array
+    {
+        $kept = $this->window->apply($turns);
+
+        if ($turns !== []) {
+            $this->logger->info('conversation.history', [
+                'conversation_id' => $conversationId,
+                'window_turns' => $this->windowTurns,
+                'in_window' => min(count($turns), $this->windowTurns),
+                'kept' => count($kept),
+                'chars' => array_sum(array_map(fn (Turn $t) => mb_strlen($t->question) + mb_strlen($t->answer), $kept)),
+            ]);
+        }
+
+        return $kept;
+    }
+
+    /** @param list<Turn> $history 已經過 Sliding Window（最近 N 輪、移除編號、長度預算） */
+    private function generate(string $question, AnswerOptions $options, ?int $conversationId, array $history): RagAnswer
     {
         $provider = $options->provider ?? $this->defaultProvider ?? $this->chat->defaultProvider();
 
+        // 錯誤發生在檢索之前：追問先改寫成獨立問題，Dense、關鍵字、Reranker 一律使用改寫後的問題（第一輪不改寫）
+        $rewrite = $this->rewriter->rewrite($question, $history, $provider);
+
         $startedAt = hrtime(true);
-        $retrieval = $this->retriever->retrieve($question, new RetrieveOptions(topK: $this->topK));
+        $retrieval = $this->retriever->retrieve($rewrite->question, new RetrieveOptions(topK: $this->topK));
         $retrievalMs = $this->elapsedMs($startedAt);
 
         // 第一道防線：沒有候選通過門檻就不呼叫 LLM，模型沒有機會依自己的記憶硬湊答案，也省下時間與成本
         if (! $retrieval->hasCandidates()) {
-            return new RagAnswer($this->insufficientMessage, AnswerStatus::InsufficientNoCandidates, false, [], 0, $provider, null, null, $retrievalMs, null, $retrieval);
+            return new RagAnswer($this->insufficientMessage, AnswerStatus::InsufficientNoCandidates, false, [], 0, $provider, null, null, $retrievalMs, null, $retrieval,
+                conversationId: $conversationId, originalQuestion: $question, rewrite: $rewrite, historyTurns: count($history));
         }
 
         $context = $this->contexts->build($retrieval->chunks, $this->contextBudgetChars);
+        // 回答：最近 N 輪（已移除編號）+ 參考資料 + 原始問題（保留使用者的語氣與指代）
         $messages = [
             new Message(Role::System, $this->systemPrompt),
+            ...array_merge(...array_map(fn (Turn $t) => [new Message(Role::User, $t->question), new Message(Role::Assistant, $t->answer)], $history)),
             new Message(Role::User, "<reference>\n{$context->text}\n</reference>\n\n問題：{$question}"),
         ];
 
@@ -89,6 +166,10 @@ class RagAnswerService
             $cited->invalidRefs,
             $cited->uncited,
             collect($cited->citations)->mapWithKeys(fn ($c) => [$c->ref => $this->formatter->label($c)])->all(),
+            $conversationId,
+            $question,
+            $rewrite,
+            count($history),
         );
     }
 
