@@ -47,6 +47,7 @@
         <env name="RAG_REWRITE_OLLAMA_MODEL" value=""/>
         <env name="RAG_REWRITE_OLLAMA_TIMEOUT" value="120"/>
         <env name="RAG_REWRITE_OLLAMA_THINK" value="true"/>
+        <env name="RAG_REWRITE_OLLAMA_REPEAT_PENALTY" value="1.05"/>
         <env name="RAG_REWRITE_OPENAI_MODEL" value=""/>
         <env name="RAG_REWRITE_OPENAI_TIMEOUT" value="15"/>
         <env name="RAG_REWRITE_MAX_CHARS" value="200"/>

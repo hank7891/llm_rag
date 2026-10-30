@@ -155,6 +155,17 @@ class OllamaProviderTest extends TestCase
         Http::assertSent(fn (Request $request) => $request['options']['num_ctx'] === 4096);
     }
 
+    public function test_repeat_penalty_is_sent_only_when_given_per_request(): void
+    {
+        Http::fake([self::URL => Http::response($this->chatResponse())]);
+
+        $this->provider()->chat($this->messages(), new ChatOptions);
+        $this->provider()->chat($this->messages(), new ChatOptions(providerOptions: ['ollama' => ['repeat_penalty' => 1.1]]));
+
+        $sent = Http::recorded()->map(fn (array $pair) => $pair[0]['options']['repeat_penalty'] ?? null)->all();
+        $this->assertSame([null, 1.1], $sent);
+    }
+
     public function test_options_for_other_providers_are_ignored(): void
     {
         Http::fake([self::URL => Http::response($this->chatResponse())]);

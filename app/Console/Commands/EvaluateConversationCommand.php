@@ -21,6 +21,7 @@ class EvaluateConversationCommand extends Command
         {--rewrite-provider= : 改寫用的 Chat Provider，未填使用設定值（follow 時跟隨 Chat 的預設 Provider）}
         {--prompt-version= : 改寫 Prompt 版本（v1 / v2 / v3），未填使用設定值}
         {--rewrite-think= : on / off：覆寫 rag.conversation.rewrite.providers.ollama.provider_options.think}
+        {--rewrite-repeat-penalty= : 覆寫 rag.conversation.rewrite.providers.ollama.provider_options.repeat_penalty（1 = 不懲罰）}
         {--rewrite-timeout= : 覆寫本次改寫 Provider 的逾時秒數}
         {--rerank= : on / off，未填使用 rag.rerank.enabled}
         {--answer : 也執行完整問答，記錄回答 LLM 的 input_tokens}
@@ -38,6 +39,9 @@ class EvaluateConversationCommand extends Command
         // 改寫參數在 QueryRewriter 建立時注入，所以先改設定再從 Container 取得 Evaluator
         if ($this->option('rewrite-think') !== null) {
             config()->set('rag.conversation.rewrite.providers.ollama.provider_options.think', $this->option('rewrite-think') === 'on');
+        }
+        if ($this->option('rewrite-repeat-penalty') !== null) {
+            config()->set('rag.conversation.rewrite.providers.ollama.provider_options.repeat_penalty', (float) $this->option('rewrite-repeat-penalty'));
         }
         if ($this->option('rewrite-timeout') !== null) {
             config()->set("rag.conversation.rewrite.providers.{$provider}.timeout", (int) $this->option('rewrite-timeout'));

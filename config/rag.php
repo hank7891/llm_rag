@@ -112,7 +112,13 @@ return [
                     // Ch13 實測（M1）：qwen3 關閉思考時解不開「第一個問題」這類回指，開啟後 Recall@1 54% → 85%；
                     // 代價是改寫 p50 約 28 秒、p95 約 70 秒，逾時要配合調大
                     'timeout' => (int) env('RAG_REWRITE_OLLAMA_TIMEOUT', 120),
-                    'provider_options' => ['think' => (bool) env('RAG_REWRITE_OLLAMA_THINK', true)],
+                    // repeat_penalty：搬到 Mac mini（Ollama 0.40）後實測，think + temperature 0 會在「那兩年年資呢？」陷入重複迴圈、
+                    // 400 秒仍未結束（Qwen3 官方也警告 thinking 模式用 greedy decoding 會無止盡重複）。
+                    // 多輪評估：1.05 → Recall@1 100%、p95 12 秒；1.1 會解不開「第一個問題」的回指（85%）。很敏感，修改後要重跑 rag:eval-conversation
+                    'provider_options' => [
+                        'think' => (bool) env('RAG_REWRITE_OLLAMA_THINK', true),
+                        'repeat_penalty' => (float) env('RAG_REWRITE_OLLAMA_REPEAT_PENALTY', 1.05),
+                    ],
                 ],
                 'openai' => [
                     'model' => env('RAG_REWRITE_OPENAI_MODEL') ?: null,

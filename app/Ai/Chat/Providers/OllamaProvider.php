@@ -213,6 +213,8 @@ class OllamaProvider implements ChatProviderInterface, EmbeddingProviderInterfac
                 'num_ctx' => $this->numCtx($options),
                 'temperature' => $options->temperature,
                 'num_predict' => $options->maxTokens,
+                // 只在逐次指定時送出（目前只有改寫）；沒指定時沿用模型檔的值（qwen3:8b 為 1，即不懲罰）
+                'repeat_penalty' => $options->forProvider(self::NAME)['repeat_penalty'] ?? null,
             ], fn ($value) => $value !== null),
         ];
     }

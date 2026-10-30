@@ -157,7 +157,7 @@ class ConversationTest extends TestCase
     public static function followedProviders(): array
     {
         return [
-            'ollama：think 開啟、120 秒' => ['ollama', ['ollama' => ['think' => true]], 120],
+            'ollama：think 開啟、repeat_penalty 1.05、120 秒' => ['ollama', ['ollama' => ['think' => true, 'repeat_penalty' => 1.05]], 120],
             'openai：15 秒' => ['openai', ['openai' => []], 15],
         ];
     }
@@ -380,7 +380,7 @@ class ConversationTest extends TestCase
         File::deleteDirectory($dir);
     }
 
-    public function test_eval_conversation_command_overrides_think_and_separates_ambiguous_cases(): void
+    public function test_eval_conversation_command_overrides_think_and_repeat_penalty_and_separates_ambiguous_cases(): void
     {
         $this->routeProvidersToScript();
         $dir = sys_get_temp_dir().'/ch13-eval-'.uniqid();
@@ -389,10 +389,10 @@ class ConversationTest extends TestCase
         File::ensureDirectoryExists($dir);
         File::put($set, $case('h01', 'ellipsis')."\n".$case('h13', 'ambiguous')."\n");
 
-        $this->artisan('rag:eval-conversation', ['--rewrite' => 'llm', '--rewrite-provider' => 'ollama', '--rewrite-think' => 'on', '--set' => $set, '--output-dir' => $dir, '--label' => 'test'])->assertSuccessful();
+        $this->artisan('rag:eval-conversation', ['--rewrite' => 'llm', '--rewrite-provider' => 'ollama', '--rewrite-think' => 'on', '--rewrite-repeat-penalty' => '1.3', '--set' => $set, '--output-dir' => $dir, '--label' => 'test'])->assertSuccessful();
 
         $report = File::get(File::glob("{$dir}/ch13-eval-llm-test-*.md")[0]);
-        $this->assertSame([true, true, true], [str_contains($report, '| 全部 | 1 | 0% | 0% | 0.000 |'), str_contains($report, '| h13 | 那兩年年資呢？ |'), str_contains($report, '"think":true')]);
+        $this->assertSame([true, true, true, true], [str_contains($report, '| 全部 | 1 | 0% | 0% | 0.000 |'), str_contains($report, '| h13 | 那兩年年資呢？ |'), str_contains($report, '"think":true'), str_contains($report, '"repeat_penalty":1.3')]);
         File::deleteDirectory($dir);
     }
 
