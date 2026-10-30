@@ -1,9 +1,44 @@
-# Ch00 開發環境（final）
-# - Laravel、Ollama：macOS 原生執行（本機 MySQL 5.7 不使用）
-# - MySQL、Qdrant：Docker
+# 開發環境（Mac mini，2026-10-30 起）
+# - Apache + PHP（app）、Queue Worker（queue）、MySQL、Qdrant：Docker
+# - Ollama、llama-server：macOS 原生（Homebrew），容器以 host.docker.internal 連線
 # 變數讀取根目錄 .env；尚未建立 .env 時使用預設值，所以可以先單獨啟動 Qdrant
 
 services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    image: llm_rag-php:8.3
+    ports:
+      - "8000:80"      # 維持 APP_URL=http://localhost:8000
+    volumes:
+      - .:/var/www/html
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    restart: unless-stopped
+
+  queue:
+    # 與 app 共用同一個 image，只由 app 建置
+    image: llm_rag-php:8.3
+    pull_policy: never
+    # 與 Apache 同身分，避免 root 建立的 log、cache 讓 Apache 無法寫入
+    user: www-data
+    # 預設 --timeout=60 會在 Job 的 $timeout（80）之前殺掉子程序；須維持 Job timeout < 此值 < retry_after（90）
+    command: php artisan queue:listen --timeout=85
+    volumes:
+      - .:/var/www/html
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
   mysql:
     image: mysql:8.4
     environment:
@@ -19,7 +54,7 @@ services:
       - --ngram_token_size=2
       - --innodb_ft_enable_stopword=OFF
     ports:
-      - "33060:3306"   # 避開 Mac 本機可能已有的 3306；Laravel 連 127.0.0.1:33060
+      - "33060:3306"   # 只供主機上的工具（TablePlus 等）連線；Laravel 在容器內連 mysql:3306
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
