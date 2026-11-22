@@ -54,7 +54,7 @@ services:
       - --ngram_token_size=2
       - --innodb_ft_enable_stopword=OFF
     ports:
-      - "33060:3306"   # 只供主機上的工具（TablePlus 等）連線；Laravel 在容器內連 mysql:3306
+      - "33061:3306"   # 只供主機上的工具（TablePlus 等）連線；Laravel 在容器內連 mysql:3306。33060 與其他專案（colledex）衝突
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:

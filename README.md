@@ -47,7 +47,7 @@
 | 雲端 LLM | OpenAI（gpt-4.1-mini）、Gemini |
 | Embedding | bge-m3（線上）、qwen3-embedding:0.6b（比較用），皆透過 Ollama |
 | Vector Database | Qdrant 1.19（Docker，port 6333） |
-| Business Database / 關鍵字檢索 | MySQL 8.4（Docker，port 33060），FULLTEXT ngram |
+| Business Database / 關鍵字檢索 | MySQL 8.4（Docker，port 33061），FULLTEXT ngram |
 | Reranker | llama.cpp `llama-server` + bge-reranker-v2-m3 Q8_0（原生執行，port 8012） |
 | 文件解析 | poppler `pdftotext`（PHP 映像內） |
 
@@ -120,7 +120,7 @@ cp .env.example .env
 
   | 變數 | 值 | 說明 |
   |---|---|---|
-  | `DB_HOST` / `DB_PORT` | `mysql` / `3306` | compose 的 service 名稱；主機上的工具才用 `127.0.0.1:33060` |
+  | `DB_HOST` / `DB_PORT` | `mysql` / `3306` | compose 的 service 名稱；主機上的工具才用 `127.0.0.1:33061` |
   | `QDRANT_URL` | `http://qdrant:6333` | |
   | `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | Ollama 在主機 |
   | `RAG_RERANK_BASE_URL` | `http://host.docker.internal:8012` | llama-server 在主機 |
