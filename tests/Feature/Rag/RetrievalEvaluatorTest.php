@@ -272,6 +272,18 @@ class RetrievalEvaluatorTest extends TestCase
         );
     }
 
+    public function test_v2_election_test_set_is_valid(): void
+    {
+        $questions = $this->evaluator()->load(base_path('tests/rag-set/v2-election/questions.jsonl'));
+        $answerability = array_count_values(array_map(fn (TestQuestion $q) => $q->answerability()->value, $questions));
+
+        // 凍結的測試集：題數與 answerable 分布改變代表有人改了題目；無答案題 expected 必須為空，其餘至少一個預期來源
+        $this->assertSame(
+            [131, ['yes' => 109, 'partial' => 7, 'no' => 15], []],
+            [count($questions), $answerability, array_values(array_filter($questions, fn (TestQuestion $q) => $q->isNoAnswer() !== ($q->expected === [])))],
+        );
+    }
+
     // ---- 指令 ----
 
     public function test_eval_command_writes_markdown_report(): void
