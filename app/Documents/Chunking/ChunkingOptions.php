@@ -35,12 +35,12 @@ final readonly class ChunkingOptions
     }
 
     /**
-     * 寫入 document_chunks.chunk_strategy，例如 structure_v2:max600:ov15。
-     * structure v2（Ch08）：過短的開頭段併入下一段。
+     * 寫入 document_chunks.chunk_strategy，例如 structure_v3:max600:ov15。
+     * structure v2（Ch08）：過短的開頭段併入下一段；v3（Ch15）：「第 47-1 條」也是條文標題。
      */
     public function label(): string
     {
-        $version = $this->strategy === self::STRUCTURE ? 2 : 1;
+        $version = $this->strategy === self::STRUCTURE ? 3 : 1;
 
         return sprintf('%s_v%d:max%d:ov%d', $this->strategy, $version, $this->maxTokens, (int) round($this->overlapRatio * 100));
     }

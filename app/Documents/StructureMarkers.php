@@ -5,15 +5,15 @@ namespace App\Documents;
 /**
  * 文件結構標記的判斷規則，TextNormalizer（接回硬換行）與 StructureSplitter（切段）共用，避免兩邊判斷不一致。
  *
- * 條文標題必須是「第 X 條」或「第 X 條之 Y」，後面只能接空白或換行（可再接標題文字）。
+ * 條文標題必須是「第 X 條」、「第 X 條之 Y」或「第 X-Y 條」（全國法規資料庫的寫法），後面只能接空白或換行（可再接標題文字）。
  * 後面直接接其他文字的是內文引用，例如「第三條之一規定辦理」「第十二條之規定」，不是標題。
  */
 final class StructureMarkers
 {
     private const NUMBER = '[一二三四五六七八九十百千零〇\d]+';
 
-    /** 第一條、第 12 條、第十二條之一、第7條之1（後面須為空白或行尾） */
-    public const ARTICLE = '/^\s*(第\s*'.self::NUMBER.'\s*條(?:\s*之\s*'.self::NUMBER.')?)(?=\s|$)/u';
+    /** 第一條、第 12 條、第十二條之一、第7條之1、第 47-1 條（後面須為空白或行尾） */
+    public const ARTICLE = '/^\s*(第\s*'.self::NUMBER.'(?:\s*-\s*\d+)?\s*條(?:\s*之\s*'.self::NUMBER.')?)(?=\s|$)/u';
 
     /** 第一章、第 3 章（後面須為空白或行尾） */
     public const CHAPTER = '/^\s*(第\s*'.self::NUMBER.'\s*章)(?=\s|$)/u';
