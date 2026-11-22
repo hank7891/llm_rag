@@ -142,6 +142,14 @@ class HybridRetrievalTest extends TestCase
         $this->assertSame([[2], true, null], [$this->order($result), $result->chunks[0]->exactMatch, $result->chunks[0]->denseRank]);
     }
 
+    public function test_exact_hit_count_is_reported_even_when_gated_out(): void
+    {
+        // 評估離線重算門檻時，需要知道「精確命中」是否存在（精確命中不受 Dense 門檻影響）
+        $this->fake(exact: [2 => 15.0, 0 => 9.0]);
+
+        $this->assertSame([2, 0], [$this->retrieve('HR-2026 是什麼的代碼？')->exactHitCount, $this->retrieve('特休怎麼算？')->exactHitCount]);
+    }
+
     // ---- keyword_only_policy ----
 
     public function test_exact_only_policy_excludes_keyword_only_chunks(): void

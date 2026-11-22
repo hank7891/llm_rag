@@ -27,7 +27,8 @@ class EvaluateRetrievalCommand extends Command
         {--rerank-keep-exact= : on / off：精確命中是否保證保留}
         {--rerank-prefix-metadata= : on / off：段落前是否加上「文件名稱 條號：」}
         {--set=tests/rag-set/questions.jsonl : 測試集}
-        {--output-dir=docs/notes : 評估結果的存放目錄}';
+        {--output-dir=docs/notes : 評估結果的存放目錄}
+        {--json= : 另存每題 Top-20 的原始資料（分數、各層名次、耗時）為 JSON，供離線分析與門檻掃描}';
 
     protected $description = '以測試集計算 Recall@K、Top-1 分數分布與門檻判斷結果';
 
@@ -57,6 +58,13 @@ class EvaluateRetrievalCommand extends Command
         File::put($path, $this->markdown($report, $sections));
         $this->line("結果已寫入 {$path}");
 
+        if ($this->option('json') !== null) {
+            $json = $this->path($this->option('json'));
+            File::ensureDirectoryExists(dirname($json));
+            File::put($json, json_encode($this->raw($report), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+            $this->line("原始資料已寫入 {$json}");
+        }
+
         return self::SUCCESS;
     }
 
@@ -81,6 +89,50 @@ class EvaluateRetrievalCommand extends Command
     private function path(string $path): string
     {
         return str_starts_with($path, '/') ? $path : base_path($path);
+    }
+
+    /**
+     * 原始資料：不套門檻的檢索結果。gate 欄位（Dense 最高分、精確命中數）可離線重算任一門檻下的「資料不足」判斷。
+     *
+     * @return array<string, mixed>
+     */
+    private function raw(EvaluationReport $report): array
+    {
+        return [
+            'model' => $report->model,
+            'collection' => $report->collection,
+            'mode' => $report->mode->value,
+            'set' => $this->option('set'),
+            'rerank' => $this->onOff('rerank') ?? config('rag.rerank.enabled'),
+            'questions' => array_map(fn (QuestionResult $r) => [
+                'id' => $r->question->id,
+                'type' => $r->question->type->value,
+                'answerable' => $r->question->answerability()->value,
+                'question' => $r->question->question,
+                'expected' => array_map(fn ($e) => ['document' => $e->document, 'section' => $e->section], $r->question->expected),
+                'rank' => $r->rank,
+                'expected_ranks' => $r->expectedRanks,
+                'latency_ms' => $r->latencyMs,
+                'rerank_ms' => $r->rerankMs,
+                'rerank_degraded' => $r->rerankDegraded,
+                'dense_top_score' => $r->raw?->denseTopScore,
+                'exact_hit_count' => $r->raw?->exactHitCount,
+                'top' => array_map(fn ($c) => [
+                    'chunk_id' => $c->chunkId,
+                    'document' => $c->documentName,
+                    'section' => $c->section,
+                    'score' => $c->score,
+                    'dense_score' => $c->denseScore,
+                    'dense_rank' => $c->denseRank,
+                    'keyword_rank' => $c->keywordRank,
+                    'exact_match' => $c->exactMatch,
+                    'rrf_score' => $c->rrfScore,
+                    'retrieval_rank' => $c->retrievalRank,
+                    'rerank_rank' => $c->rerankRank,
+                    'rerank_score' => $c->rerankScore,
+                ], $r->raw?->chunks ?? []),
+            ], $report->results),
+        ];
     }
 
     /** @return array<string, array{list<string>, list<list<string|int>>}> 標題 → [欄位, 列] */
@@ -147,7 +199,7 @@ class EvaluateRetrievalCommand extends Command
                 $r->question->id,
                 $r->question->type->label(),
                 $r->question->question,
-                $r->question->type === QuestionType::NoAnswer ? '—' : ($r->rank ?? '未命中'),
+                $r->question->isNoAnswer() ? '—' : ($r->rank ?? '未命中'),
                 $r->hitScore === null ? '—' : sprintf('%.4f', $r->hitScore),
                 $r->top === null ? '—' : sprintf('%.4f', $r->top->score),
                 $r->top === null ? '—' : $r->top->documentName.' '.($r->top->section ?? ''),
@@ -156,7 +208,7 @@ class EvaluateRetrievalCommand extends Command
                     true => in_array($r, $report->thresholdErrors(), true) ? '有候選 ✗' : '有候選',
                     false => in_array($r, $report->thresholdErrors(), true) ? '無候選 ✗' : '無候選',
                 },
-                $r->question->type === QuestionType::NoAnswer || $r->inContext === null ? '—' : ($r->inContext ? '是' : '否'),
+                $r->question->isNoAnswer() || $r->inContext === null ? '—' : ($r->inContext ? '是' : '否'),
                 ...($reranked ? [
                     $r->rank === null ? '—' : ($r->preRerankRank ?? '—').'→'.$r->rank,
                     $r->top?->rerankScore === null ? '—' : sprintf('%.3f', $r->top->rerankScore),

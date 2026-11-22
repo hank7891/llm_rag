@@ -60,13 +60,13 @@ final readonly class EvaluationReport
     /** @return list<QuestionResult> */
     public function answerable(): array
     {
-        return array_values(array_filter($this->results, fn (QuestionResult $r) => $r->question->type !== QuestionType::NoAnswer));
+        return array_values(array_filter($this->results, fn (QuestionResult $r) => ! $r->question->isNoAnswer()));
     }
 
     /** @return list<QuestionResult> */
     public function noAnswer(): array
     {
-        return array_values(array_filter($this->results, fn (QuestionResult $r) => $r->question->type === QuestionType::NoAnswer));
+        return array_values(array_filter($this->results, fn (QuestionResult $r) => $r->question->isNoAnswer()));
     }
 
     /**
@@ -87,6 +87,6 @@ final readonly class EvaluationReport
     public function thresholdErrors(): array
     {
         return array_values(array_filter($this->results, fn (QuestionResult $r) => $r->hasCandidates !== null
-            && $r->hasCandidates === ($r->question->type === QuestionType::NoAnswer)));
+            && $r->hasCandidates === $r->question->isNoAnswer()));
     }
 }

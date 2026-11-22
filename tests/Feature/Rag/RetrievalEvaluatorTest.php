@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Rag;
 
+use App\Rag\Evaluation\Answerability;
 use App\Rag\Evaluation\EvaluationReport;
 use App\Rag\Evaluation\ExpectedSource;
 use App\Rag\Evaluation\QuestionResult;
@@ -196,6 +197,58 @@ class RetrievalEvaluatorTest extends TestCase
         $this->assertSame([200, 900, 1], [$report->rerankLatencyPercentile(50), $report->rerankLatencyPercentile(95), $report->rerankDegradedCount()]);
     }
 
+    // ---- answerable（Ch15 v2 測試集） ----
+
+    public function test_answerability_falls_back_to_type_when_not_declared(): void
+    {
+        $this->assertSame(
+            [Answerability::No, Answerability::Partial, Answerability::Yes, Answerability::Partial],
+            [
+                self::question('q1', QuestionType::NoAnswer)->answerability(),
+                self::question('q2', QuestionType::Partial)->answerability(),
+                self::question('q3', QuestionType::Exact)->answerability(),
+                (new TestQuestion('q4', QuestionType::NoAnswer, '問題', [], null, Answerability::Partial))->answerability(),
+            ],
+        );
+    }
+
+    public function test_declared_answerability_decides_recall_and_threshold_groups(): void
+    {
+        // v2 的 no_answer 類同時有 no 與 partial：partial 要算進 Recall，不能當成無答案題
+        $this->fakeRetriever([
+            '問題 q1' => [self::chunk('A.pdf', '第 38 條', 0.7)],
+            '問題 q2' => [self::chunk('A.pdf', '第 1 條', 0.5)],
+        ]);
+
+        $report = $this->evaluator()->evaluate([
+            new TestQuestion('q1', QuestionType::NoAnswer, '問題 q1', [new ExpectedSource('A.pdf', '第 38 條')], null, Answerability::Partial),
+            new TestQuestion('q2', QuestionType::Single, '問題 q2', [], null, Answerability::No),
+        ]);
+
+        $this->assertSame([['q1'], ['q2'], 1.0], [
+            array_map(fn (QuestionResult $r) => $r->question->id, $report->answerable()),
+            array_map(fn (QuestionResult $r) => $r->question->id, $report->noAnswer()),
+            $report->recall(1),
+        ]);
+    }
+
+    public function test_all_within_requires_every_expected_source(): void
+    {
+        $this->fakeRetriever(['問題 q1' => [self::chunk('A.pdf', '第 1 條', 0.7), self::chunk('X.pdf', null, 0.69), self::chunk('A.pdf', '第 12 條', 0.68)]]);
+
+        $result = $this->evaluator()->evaluate([self::question('q1', QuestionType::MultiHop, [new ExpectedSource('A.pdf', '第 1 條'), new ExpectedSource('A.pdf', '第 12 條')])])->results[0];
+
+        $this->assertSame([[1, 3], true, false, false], [$result->expectedRanks, $result->hitWithin(1) && ! $result->allWithin(1), $result->allWithin(2), ! $result->allWithin(3)]);
+    }
+
+    public function test_load_reads_answerable_field(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'rag-set');
+        file_put_contents($path, json_encode(['id' => 'H02', 'type' => 'no_answer', 'question' => 'a', 'expected' => [['document' => 'A.pdf', 'section' => '第 38 條']], 'answerable' => 'partial']));
+
+        $this->assertSame(Answerability::Partial, $this->evaluator()->load($path)[0]->answerability());
+    }
+
     // ---- 測試集 ----
 
     public function test_invalid_line_reports_line_number(): void
@@ -231,6 +284,23 @@ class RetrievalEvaluatorTest extends TestCase
         $this->artisan('rag:eval', ['--set' => $set, '--output-dir' => $dir])->assertSuccessful();
 
         $this->assertStringContainsString('| 全部（1 題） | 100% | 100% | 100% | 100% |', File::get(File::files($dir)[0]->getPathname()));
+        File::deleteDirectory($dir);
+    }
+
+    public function test_eval_command_writes_raw_json_with_gate_fields(): void
+    {
+        $this->mock(RetrieverService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('configuredThreshold')->andReturn(0.6);
+            $mock->shouldReceive('retrieve')->andReturn(new RetrievalResult([self::chunk('A.pdf', '第一條', 0.7)], 'fake', 20, null, denseTopScore: 0.7, exactHitCount: 2));
+        });
+        $set = tempnam(sys_get_temp_dir(), 'rag-set');
+        file_put_contents($set, json_encode(['id' => 'q1', 'type' => 'single', 'question' => '問題 q1', 'expected' => [['document' => 'A.pdf', 'section' => '第一條']], 'answerable' => 'yes']));
+        $dir = sys_get_temp_dir().'/rag-eval-'.uniqid();
+
+        $this->artisan('rag:eval', ['--set' => $set, '--output-dir' => $dir, '--json' => "{$dir}/raw.json"])->assertSuccessful();
+
+        $q = json_decode(File::get("{$dir}/raw.json"), true)['questions'][0];
+        $this->assertSame(['yes', 1, [1], 0.7, 2, 'A.pdf'], [$q['answerable'], $q['rank'], $q['expected_ranks'], $q['dense_top_score'], $q['exact_hit_count'], $q['top'][0]['document']]);
         File::deleteDirectory($dir);
     }
 }

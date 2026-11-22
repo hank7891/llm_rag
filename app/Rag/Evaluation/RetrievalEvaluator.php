@@ -35,6 +35,7 @@ class RetrievalEvaluator
                 $row['question'],
                 array_map(fn (array $e) => new ExpectedSource($e['document'], $e['section']), $row['expected']),
                 $row['expected_answer'] ?? null,
+                isset($row['answerable']) ? Answerability::from($row['answerable']) : null,
             );
         }
 
@@ -67,7 +68,9 @@ class RetrievalEvaluator
         $results = [];
 
         foreach ($questions as $question) {
+            $started = hrtime(true);
             $raw = $this->retriever->retrieve($question->question, new RetrieveOptions($model, max(self::RECALL_AT), $applyThreshold ? $scoreThreshold : null, $applyThreshold, $mode, $policy, $rerank, $rerankCandidates, $rerankKeepExact, $rerankPrefixMetadata));
+            $latencyMs = (int) round((hrtime(true) - $started) / 1e6);
             $model = $raw->model;
             $threshold = $scoreThreshold ?? $this->retriever->configuredThreshold($model);
             $matches = fn (RetrievedChunk $chunk) => collect($question->expected)->contains(fn (ExpectedSource $e) => $e->matches($chunk));
@@ -87,6 +90,14 @@ class RetrievalEvaluator
                 $index === false ? null : $raw->chunks[$index]->retrievalRank,
                 $raw->rerankMs,
                 $raw->rerankDegraded,
+                // All@k（多條組合題）：每個期望來源各自的第一個命中名次
+                array_map(function (ExpectedSource $e) use ($raw) {
+                    $i = collect($raw->chunks)->search(fn (RetrievedChunk $c) => $e->matches($c));
+
+                    return $i === false ? null : $i + 1;
+                }, $question->expected),
+                $latencyMs,
+                $raw,
             );
         }
 

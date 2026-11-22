@@ -8,7 +8,6 @@ use App\Rag\Citation\InvalidReason;
 use App\Rag\Citation\InvalidRef;
 use App\Rag\Evaluation\AnswerEvaluator;
 use App\Rag\Evaluation\AnswerResult;
-use App\Rag\Evaluation\QuestionType;
 use App\Rag\Evaluation\RetrievalEvaluator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -61,8 +60,8 @@ class EvaluateAnswersCommand extends Command
      */
     private function summary(array $results): array
     {
-        $noAnswer = array_filter($results, fn (AnswerResult $r) => $r->question->type === QuestionType::NoAnswer);
-        $answerable = array_filter($results, fn (AnswerResult $r) => $r->question->type !== QuestionType::NoAnswer);
+        $noAnswer = array_filter($results, fn (AnswerResult $r) => $r->question->isNoAnswer());
+        $answerable = array_filter($results, fn (AnswerResult $r) => ! $r->question->isNoAnswer());
         $answered = array_filter($results, fn (AnswerResult $r) => $r->answer !== null);
         $called = array_filter($answered, fn (AnswerResult $r) => $r->answer->llmCalled);
         $count = fn (array $items, callable $test) => count(array_filter($items, $test));
@@ -92,7 +91,7 @@ class EvaluateAnswersCommand extends Command
     {
         $answered = array_filter($results, fn (AnswerResult $r) => $r->answer?->status === AnswerStatus::Answered);
         $hits = array_filter($answered, fn (AnswerResult $r) => $r->citationHit() !== null);
-        $noAnswer = array_filter($results, fn (AnswerResult $r) => $r->question->type === QuestionType::NoAnswer && $r->answer !== null);
+        $noAnswer = array_filter($results, fn (AnswerResult $r) => $r->question->isNoAnswer() && $r->answer !== null);
         $invalid = collect($results)->flatMap(fn (AnswerResult $r) => $r->answer->invalidRefs ?? [])->countBy(fn (InvalidRef $i) => $i->reason->value);
         $ratio = fn (int $n, array $of) => $of === [] ? '—' : "{$n} / ".count($of);
 

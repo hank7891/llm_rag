@@ -45,9 +45,9 @@ final readonly class AnswerResult
             return false;
         }
 
-        return match ($this->question->type) {
-            QuestionType::NoAnswer => $this->answer->status->isInsufficient(),
-            QuestionType::Partial => $this->answer->llmCalled && $this->citations !== [],
+        return match ($this->question->answerability()) {
+            Answerability::No => $this->answer->status->isInsufficient(),
+            Answerability::Partial => $this->answer->llmCalled && $this->citations !== [],
             default => ! $this->answer->status->isInsufficient() && $this->citations !== [],
         };
     }

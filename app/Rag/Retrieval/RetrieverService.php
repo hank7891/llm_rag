@@ -89,7 +89,7 @@ class RetrieverService
             && ! ($mode === RetrievalMode::Keyword && $policy === KeywordOnlyPolicy::Allow && $keyword !== []);
         if ($gated || $eligible === []) {
             // 資料不足：不呼叫 Reranker，也不會呼叫 LLM
-            return new RetrievalResult([], $model, $finalTopK, $threshold, $unfilteredTopScore, $denseTopScore, $mode);
+            return new RetrievalResult([], $model, $finalTopK, $threshold, $unfilteredTopScore, $denseTopScore, $mode, exactHitCount: count($exact));
         }
 
         $rrf = $this->fusion->fuse(['dense' => array_keys($dense), 'keyword' => array_keys($keyword), 'exact' => array_keys($exact)], $this->rrfK);
@@ -120,14 +120,14 @@ class RetrieverService
         }
 
         if (! $rerank || $chunks === []) {
-            return new RetrievalResult(array_slice($chunks, 0, $finalTopK), $model, $finalTopK, $threshold, $unfilteredTopScore, $denseTopScore, $mode);
+            return new RetrievalResult(array_slice($chunks, 0, $finalTopK), $model, $finalTopK, $threshold, $unfilteredTopScore, $denseTopScore, $mode, exactHitCount: count($exact));
         }
 
         // 只重排前 N 筆候選；評估時 Top-K（20）大於候選數，其餘維持第一階段的順序接在後面
         $outcome = $this->rerankStage->rerank($query, array_slice($chunks, 0, $candidates), min($finalTopK, $candidates), $options->rerankKeepExact ?? $this->rerankKeepExact, $options->rerankPrefixMetadata ?? $this->rerankPrefixMetadata);
         $final = array_slice(array_merge($outcome->chunks, array_slice($chunks, $candidates)), 0, $finalTopK);
 
-        return new RetrievalResult($final, $model, $finalTopK, $threshold, $unfilteredTopScore, $denseTopScore, $mode, $outcome->reranked, $outcome->latencyMs, $outcome->degraded);
+        return new RetrievalResult($final, $model, $finalTopK, $threshold, $unfilteredTopScore, $denseTopScore, $mode, $outcome->reranked, $outcome->latencyMs, $outcome->degraded, count($exact));
     }
 
     /** 設定檔中該模型的門檻；沒有設定時為 null */

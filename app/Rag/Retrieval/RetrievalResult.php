@@ -12,6 +12,7 @@ final readonly class RetrievalResult
     /**
      * @param  list<RetrievedChunk>  $chunks  依分數由高到低
      * @param  float|null  $unfilteredTopScore  無候選時，不套門檻的最高分（被門檻擋掉的那一筆）
+     * @param  int  $exactHitCount  精確詞命中的 Chunk 數（不受 Top-K 截斷；評估時用來重算「資料不足」的判斷）
      */
     public function __construct(
         public array $chunks,
@@ -24,6 +25,7 @@ final readonly class RetrievalResult
         public bool $reranked = false,
         public ?int $rerankMs = null,
         public bool $rerankDegraded = false,
+        public int $exactHitCount = 0,
     ) {}
 
     public function hasCandidates(): bool

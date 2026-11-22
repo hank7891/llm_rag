@@ -25,6 +25,19 @@ enum QuestionType: string
 
     case ProperNoun = 'proper_noun';
 
+    // Ch15（v2 選舉法規測試集）：能否回答另記在 answerable，no_answer 類也含 partial
+    case Single = 'single';
+
+    case ExactRef = 'exact_ref';
+
+    case Confusable = 'confusable';
+
+    case Temporal = 'temporal';
+
+    case MultiHop = 'multi_hop';
+
+    case FalsePremise = 'false_premise';
+
     public function label(): string
     {
         return match ($this) {
@@ -37,6 +50,12 @@ enum QuestionType: string
             self::Article => '條號',
             self::Code => '編號',
             self::ProperNoun => '專有名詞',
+            self::Single => '單一條文',
+            self::ExactRef => '精確條號',
+            self::Confusable => '跨法易混淆',
+            self::Temporal => '修法時效',
+            self::MultiHop => '多條組合',
+            self::FalsePremise => '錯誤前提',
         };
     }
 }
