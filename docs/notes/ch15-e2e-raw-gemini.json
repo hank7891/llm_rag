@@ -1,0 +1,946 @@
+[
+    {
+        "id": "F01",
+        "type": "temporal",
+        "answerable": "yes",
+        "question": "公投是不是固定在每兩年八月的第四個星期六舉行？",
+        "expected": [
+            {
+                "document": "06_公民投票法.pdf",
+                "section": "第 23 條"
+            }
+        ],
+        "expected_answer": "否（錯誤前提）；現行條文：公告成立後三個月起至六個月內投票；期間內有全國性選舉時應同日舉行（114-12-03 修正；舊法為八月第四個星期六。模型憑記憶容易答舊規定）",
+        "status": "insufficient_no_candidates",
+        "llm_called": false,
+        "provider": "gemini",
+        "model": null,
+        "dense_top_score": 0.498425,
+        "threshold": 0.55,
+        "retrieved": [],
+        "answer": "資料不足",
+        "raw_answer": null,
+        "citations": [],
+        "labels": [],
+        "sources": [],
+        "invalid_refs": [],
+        "llm_ms": null,
+        "input_tokens": null,
+        "output_tokens": null
+    },
+    {
+        "id": "F02",
+        "type": "temporal",
+        "answerable": "partial",
+        "question": "被判刑但宣告緩刑的人，可以登記參選縣市長嗎？",
+        "expected": [
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 26 條"
+            }
+        ],
+        "expected_answer": "第九款但書：犯第一至六款以外之罪，宣告緩刑或得易服社會勞動者不在此限（可登記）；第七款：若為第一至六款之罪（如貪污、賄選），受緩刑宣告仍不得登記（115-07-01 修正；需同時讀第七、九款才答得完整）",
+        "status": "insufficient_by_llm",
+        "llm_called": true,
+        "provider": "gemini",
+        "model": "gemini-3.5-flash-lite",
+        "dense_top_score": 0.60183847,
+        "threshold": 0.55,
+        "retrieved": [
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 五 章 妨害選舉罷免之處罰 \/ 第 117 條",
+                "pages": "34-34",
+                "rerank_score": -0.2627182602882385
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 26 條",
+                "pages": "5-6",
+                "rerank_score": -1.635533094406128
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 24 條",
+                "pages": "5-5",
+                "rerank_score": -3.1364731788635254
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 27 條",
+                "pages": "6-7",
+                "rerank_score": -3.3193817138671875
+            },
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 26 條",
+                "pages": "6-6",
+                "rerank_score": -3.5310473442077637
+            }
+        ],
+        "answer": "資料不足",
+        "raw_answer": "資料不足",
+        "citations": [],
+        "labels": [],
+        "sources": [],
+        "invalid_refs": [],
+        "llm_ms": 805,
+        "input_tokens": 1831,
+        "output_tokens": 2
+    },
+    {
+        "id": "D11",
+        "type": "confusable",
+        "answerable": "yes",
+        "question": "總統候選人如果被判刑但宣告緩刑，還能登記參選嗎？",
+        "expected": [
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 26 條"
+            }
+        ],
+        "expected_answer": "第九款：犯第一至六款以外之罪判處有期徒刑確定，於緩刑期間者不得登記（與 F02（公職人員已於 115 年修法加入緩刑但書）規定不同，最容易被檢索拿錯法）",
+        "status": "insufficient_by_llm",
+        "llm_called": true,
+        "provider": "gemini",
+        "model": "gemini-3.5-flash-lite",
+        "dense_top_score": 0.650779,
+        "threshold": 0.55,
+        "retrieved": [
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 26 條",
+                "pages": "6-6",
+                "rerank_score": 0.2246268391609192
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 26 條",
+                "pages": "5-6",
+                "rerank_score": 0.19201526045799255
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 五 章 妨害選舉罷免之處罰 \/ 第 117 條",
+                "pages": "34-34",
+                "rerank_score": -0.25292497873306274
+            },
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 27 條",
+                "pages": "7-7",
+                "rerank_score": -0.6180302500724792
+            },
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 21 條",
+                "pages": "4-4",
+                "rerank_score": -1.5192205905914307
+            }
+        ],
+        "answer": "資料不足",
+        "raw_answer": "資料不足",
+        "citations": [],
+        "labels": [],
+        "sources": [],
+        "invalid_refs": [],
+        "llm_ms": 894,
+        "input_tokens": 1428,
+        "output_tokens": 2
+    },
+    {
+        "id": "H02",
+        "type": "no_answer",
+        "answerable": "partial",
+        "question": "投票所早上幾點開、下午幾點關？",
+        "expected": [
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 38 條"
+            }
+        ],
+        "expected_answer": "法規未訂具體時間；選舉公告須載明投票起、止時間（陷阱：模型記憶常答 8 點到 4 點；正確行為是說明文件未載明）",
+        "status": "answered",
+        "llm_called": true,
+        "provider": "gemini",
+        "model": "gemini-3.5-flash-lite",
+        "dense_top_score": 0.61986184,
+        "threshold": 0.55,
+        "retrieved": [
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 40 條",
+                "pages": "11-11",
+                "rerank_score": -3.2185187339782715
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 57 條",
+                "pages": "17-17",
+                "rerank_score": -4.050271987915039
+            },
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 53 條",
+                "pages": "14-14",
+                "rerank_score": -4.17958402633667
+            },
+            {
+                "document": "05_公職人員選舉罷免法施行細則.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 41 條",
+                "pages": "8-8",
+                "rerank_score": -4.407831192016602
+            },
+            {
+                "document": "05_公職人員選舉罷免法施行細則.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 30 條",
+                "pages": "7-7",
+                "rerank_score": -4.931752681732178
+            }
+        ],
+        "answer": "公職人員選舉及罷免活動期間，每日競選及罷免活動時間自上午七時起至下午十時止 [1]。",
+        "raw_answer": "公職人員選舉及罷免活動期間，每日競選及罷免活動時間自上午七時起至下午十時止 [1]。",
+        "citations": [
+            {
+                "ref": 1,
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 40 條",
+                "pages": "11-11"
+            }
+        ],
+        "labels": {
+            "1": "04_公職人員選舉罷免法.pdf　第 三 章 選舉及罷免 \/ 第 40 條　第 11 頁"
+        },
+        "sources": [
+            "[1] 04_公職人員選舉罷免法.pdf　第 三 章 選舉及罷免 \/ 第 40 條　第 11 頁"
+        ],
+        "invalid_refs": [],
+        "llm_ms": 949,
+        "input_tokens": 1727,
+        "output_tokens": 31
+    },
+    {
+        "id": "H04",
+        "type": "no_answer",
+        "answerable": "no",
+        "question": "個人捐給候選人的政治獻金上限是多少？",
+        "expected": [],
+        "expected_answer": "屬政治獻金法，不在文件範圍（陷阱：公職法第41條「競選經費最高金額」可能被誤用）",
+        "status": "insufficient_by_llm",
+        "llm_called": true,
+        "provider": "gemini",
+        "model": "gemini-3.5-flash-lite",
+        "dense_top_score": 0.6514382,
+        "threshold": 0.55,
+        "retrieved": [
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 40 條",
+                "pages": "9-9",
+                "rerank_score": -2.9226303100585938
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 42 條",
+                "pages": "11-11",
+                "rerank_score": -3.0149993896484375
+            },
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 38 條",
+                "pages": "9-9",
+                "rerank_score": -4.13966178894043
+            },
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 41 條",
+                "pages": "9-10",
+                "rerank_score": -5.254227638244629
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 43 條",
+                "pages": "12-12",
+                "rerank_score": -5.745415210723877
+            }
+        ],
+        "answer": "資料不足",
+        "raw_answer": "資料不足",
+        "citations": [],
+        "labels": [],
+        "sources": [],
+        "invalid_refs": [],
+        "llm_ms": 1088,
+        "input_tokens": 1508,
+        "output_tokens": 2
+    },
+    {
+        "id": "H06",
+        "type": "no_answer",
+        "answerable": "no",
+        "question": "縣市長任期幾年？",
+        "expected": [],
+        "expected_answer": "屬地方制度法，不在文件範圍（陷阱：大量條文提到縣市長，分數可能偏高）",
+        "status": "insufficient_by_llm",
+        "llm_called": true,
+        "provider": "gemini",
+        "model": "gemini-3.5-flash-lite",
+        "dense_top_score": 0.5915689,
+        "threshold": 0.55,
+        "retrieved": [
+            {
+                "document": "01_中華民國憲法增修條文.pdf",
+                "section": "第 4 條",
+                "pages": "2-2",
+                "rerank_score": -2.6103134155273438
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 四 章 （刪除） \/ 第 80 條",
+                "pages": "25-25",
+                "rerank_score": -3.0835323333740234
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 40 條",
+                "pages": "11-11",
+                "rerank_score": -4.019876956939697
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 24 條",
+                "pages": "5-5",
+                "rerank_score": -4.127099990844727
+            },
+            {
+                "document": "01_中華民國憲法增修條文.pdf",
+                "section": "第 2 條",
+                "pages": "1-1",
+                "rerank_score": -5.164220333099365
+            }
+        ],
+        "answer": "資料不足",
+        "raw_answer": "資料不足",
+        "citations": [],
+        "labels": [],
+        "sources": [],
+        "invalid_refs": [],
+        "llm_ms": 1261,
+        "input_tokens": 2020,
+        "output_tokens": 2
+    },
+    {
+        "id": "G04",
+        "type": "multi_hop",
+        "answerable": "yes",
+        "question": "總統選舉和縣市長選舉的重新計票規定有什麼不同？",
+        "expected": [
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 63-1 條"
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 69 條"
+            }
+        ],
+        "expected_answer": "門檻都是有效票數千分之三以內；總統四十日內完成；縣市長二十日內完成；保證金都是每票三元",
+        "status": "answered",
+        "llm_called": true,
+        "provider": "gemini",
+        "model": "gemini-3.5-flash-lite",
+        "dense_top_score": 0.68079716,
+        "threshold": 0.55,
+        "retrieved": [
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 63-1 條",
+                "pages": "17-17",
+                "rerank_score": 1.1191092729568481
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 69 條",
+                "pages": "21-21",
+                "rerank_score": 0.6034950017929077
+            },
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 一 章 總則 \/ 第 4 條",
+                "pages": "1-1",
+                "rerank_score": -2.505394697189331
+            },
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 63 條",
+                "pages": "17-17",
+                "rerank_score": -2.9116382598876953
+            },
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 62 條",
+                "pages": "16-17",
+                "rerank_score": -3.4693679809570312
+            }
+        ],
+        "answer": "總統選舉（第 63-1 條）與區域立法委員、直轄市長、縣（市）長及原住民立法委員選舉（第 69 條）的重新計票規定有以下不同：\n\n1. **適用對象**：\n   * 總統選舉適用於得票數最高與次高之候選人差距在有效票數千分之三以內時 [1]。\n   * 縣市長（與區域立委）選舉適用於得票數最高與次高之候選人得票數差距在有效票數千分之三以內；原住民立委選舉則適用於得票數第三高與第四高之候選人得票數差距在有效票數千分之三以內 [2]。此外，縣市長選舉若最高票（或原住民立委第三高票）之候選人有二人以上票數相同時，得由經抽籤而未抽中之候選人提出聲請 [2]。\n\n2. **完成重新計票之期限**：\n   * 總統選舉須於查封之投票所 **四十日內** 完成重新計票 [1]。\n   * 縣市長選舉須於查封之投票所 **二十日內** 完成重新計票 [2]。\n\n3. **重新計票結果之通知與審定機關**：\n   * 總統選舉由管轄法院將重新計票結果通知中央選舉委員會，並由中央選舉委員會於七日內依結果重行審定選舉結果 [1]。\n   * 縣市長選舉由管轄法院將重新計票結果通知各主管選舉委員會，並由各主管選舉委員會於七日內依結果重行審定選舉結果 [2]。\n\n4. **重新計票地點之選定**：\n   * 總統選舉由管轄法院「選定地點」進行逐張認定 [1]。\n   * 縣市長選舉由管轄法院於「直轄市、縣（市）分別選定地點」進行逐張認定 [2]。",
+        "raw_answer": "總統選舉（第 63-1 條）與區域立法委員、直轄市長、縣（市）長及原住民立法委員選舉（第 69 條）的重新計票規定有以下不同：\n\n1. **適用對象**：\n   * 總統選舉適用於得票數最高與次高之候選人差距在有效票數千分之三以內時 [1]。\n   * 縣市長（與區域立委）選舉適用於得票數最高與次高之候選人得票數差距在有效票數千分之三以內；原住民立委選舉則適用於得票數第三高與第四高之候選人得票數差距在有效票數千分之三以內 [2]。此外，縣市長選舉若最高票（或原住民立委第三高票）之候選人有二人以上票數相同時，得由經抽籤而未抽中之候選人提出聲請 [2]。\n\n2. **完成重新計票之期限**：\n   * 總統選舉須於查封之投票所 **四十日內** 完成重新計票 [1]。\n   * 縣市長選舉須於查封之投票所 **二十日內** 完成重新計票 [2]。\n\n3. **重新計票結果之通知與審定機關**：\n   * 總統選舉由管轄法院將重新計票結果通知中央選舉委員會，並由中央選舉委員會於七日內依結果重行審定選舉結果 [1]。\n   * 縣市長選舉由管轄法院將重新計票結果通知各主管選舉委員會，並由各主管選舉委員會於七日內依結果重行審定選舉結果 [2]。\n\n4. **重新計票地點之選定**：\n   * 總統選舉由管轄法院「選定地點」進行逐張認定 [1]。\n   * 縣市長選舉由管轄法院於「直轄市、縣（市）分別選定地點」進行逐張認定 [2]。",
+        "citations": [
+            {
+                "ref": 1,
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 63-1 條",
+                "pages": "17-17"
+            },
+            {
+                "ref": 2,
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 69 條",
+                "pages": "21-21"
+            }
+        ],
+        "labels": {
+            "1": "02_總統副總統選舉罷免法.pdf　第 三 章 選舉及罷免 \/ 第 63-1 條　第 17 頁",
+            "2": "04_公職人員選舉罷免法.pdf　第 三 章 選舉及罷免 \/ 第 69 條　第 21 頁"
+        },
+        "sources": [
+            "[1] 02_總統副總統選舉罷免法.pdf　第 三 章 選舉及罷免 \/ 第 63-1 條　第 17 頁",
+            "[2] 04_公職人員選舉罷免法.pdf　第 三 章 選舉及罷免 \/ 第 69 條　第 21 頁"
+        ],
+        "invalid_refs": [],
+        "llm_ms": 1894,
+        "input_tokens": 1678,
+        "output_tokens": 446
+    },
+    {
+        "id": "C07",
+        "type": "exact_ref",
+        "answerable": "yes",
+        "question": "選罷法第九十條",
+        "expected": [
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 90 條"
+            }
+        ],
+        "expected_answer": "同意票多於不同意票且達選舉人總數四分之一（國字條號＋簡稱；條文本文的交叉引用也是國字，測 FULLTEXT 能否對上）",
+        "status": "answered",
+        "llm_called": true,
+        "provider": "gemini",
+        "model": "gemini-3.5-flash-lite",
+        "dense_top_score": 0.70447004,
+        "threshold": 0.55,
+        "retrieved": [
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 五 章 妨害選舉罷免之處罰 \/ 第 90 條",
+                "pages": "22-22",
+                "rerank_score": 5.837980270385742
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 四 章 （刪除） \/ 第 90 條",
+                "pages": "27-28",
+                "rerank_score": 5.763967514038086
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 四 章 （刪除） \/ 第 91 條",
+                "pages": "28-28",
+                "rerank_score": 3.4356164932250977
+            },
+            {
+                "document": "01_中華民國憲法增修條文.pdf",
+                "section": "第 4 條",
+                "pages": "2-2",
+                "rerank_score": -2.3959054946899414
+            },
+            {
+                "document": "01_中華民國憲法增修條文.pdf",
+                "section": "第 7 條",
+                "pages": "3-3",
+                "rerank_score": -3.671131134033203
+            }
+        ],
+        "answer": "依據參考資料，選罷法第 90 條規定如下：\n\n1. 意圖使候選人當選或不當選，或意圖使被罷免人罷免案通過或否決者，以文字、圖畫、錄音、錄影、演講或他法，散布謠言或傳播不實之事，足以生損害於公眾 or 他人者，處五年以下有期徒刑 [1]。\n2. 以散布、播送或以他法供人觀覽候選人、被罷免人、罷免案提議人之領銜人本人之深度偽造聲音、影像、電磁紀錄之方法，犯前項之罪者，處七年以下有期徒刑 [1]。\n3. 意圖營利，而犯前二項之罪者，依各該項之規定，加重其刑至二分之一，得併科新臺幣二百萬元以上一千萬元以下罰金 [1]。\n\n另外，關於罷免案投票結果的認定（亦位於第 90 條）：\n* 罷免案投票結果，有效同意票數多於不同意票數，且同意票數達原選舉區選舉人總數四分之一以上，即為通過 [2]。\n* 有效罷免票數中，不同意票數多於同意票數或同意票數不足前項規定數額者，均為否決 [2]。",
+        "raw_answer": "依據參考資料，選罷法第 90 條規定如下：\n\n1. 意圖使候選人當選或不當選，或意圖使被罷免人罷免案通過或否決者，以文字、圖畫、錄音、錄影、演講或他法，散布謠言或傳播不實之事，足以生損害於公眾 or 他人者，處五年以下有期徒刑 [1]。\n2. 以散布、播送或以他法供人觀覽候選人、被罷免人、罷免案提議人之領銜人本人之深度偽造聲音、影像、電磁紀錄之方法，犯前項之罪者，處七年以下有期徒刑 [1]。\n3. 意圖營利，而犯前二項之罪者，依各該項之規定，加重其刑至二分之一，得併科新臺幣二百萬元以上一千萬元以下罰金 [1]。\n\n另外，關於罷免案投票結果的認定（亦位於第 90 條）：\n* 罷免案投票結果，有效同意票數多於不同意票數，且同意票數達原選舉區選舉人總數四分之一以上，即為通過 [2]。\n* 有效罷免票數中，不同意票數多於同意票數或同意票數不足前項規定數額者，均為否決 [2]。",
+        "citations": [
+            {
+                "ref": 1,
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 五 章 妨害選舉罷免之處罰 \/ 第 90 條",
+                "pages": "22-22"
+            },
+            {
+                "ref": 2,
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 四 章 （刪除） \/ 第 90 條",
+                "pages": "27-28"
+            }
+        ],
+        "labels": {
+            "1": "02_總統副總統選舉罷免法.pdf　第 五 章 妨害選舉罷免之處罰 \/ 第 90 條　第 22 頁",
+            "2": "04_公職人員選舉罷免法.pdf　第 四 章 （刪除） \/ 第 90 條　第 27–28 頁"
+        },
+        "sources": [
+            "[1] 02_總統副總統選舉罷免法.pdf　第 五 章 妨害選舉罷免之處罰 \/ 第 90 條　第 22 頁",
+            "[2] 04_公職人員選舉罷免法.pdf　第 四 章 （刪除） \/ 第 90 條　第 27–28 頁"
+        ],
+        "invalid_refs": [],
+        "llm_ms": 6587,
+        "input_tokens": 1297,
+        "output_tokens": 322
+    },
+    {
+        "id": "Q39",
+        "type": "confusable",
+        "answerable": "yes",
+        "question": "就總統選罷法第 26 條第 9 款而言，前六款以外之罪判有期徒刑確定，現在仍在緩刑期，可以登記嗎？",
+        "expected": [
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 26 條"
+            }
+        ],
+        "expected_answer": "第 9 款列入緩刑期間，屬不得登記。",
+        "status": "insufficient_by_llm",
+        "llm_called": true,
+        "provider": "gemini",
+        "model": "gemini-3.5-flash-lite",
+        "dense_top_score": 0.6847755,
+        "threshold": 0.55,
+        "retrieved": [
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 26 條",
+                "pages": "6-6",
+                "rerank_score": 2.583932399749756
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 26 條",
+                "pages": "5-6",
+                "rerank_score": 2.20902156829834
+            },
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 28 條",
+                "pages": "7-7",
+                "rerank_score": -2.6012935638427734
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 29 條",
+                "pages": "7-7",
+                "rerank_score": -3.3536536693573
+            },
+            {
+                "document": "05_公職人員選舉罷免法施行細則.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 26 條",
+                "pages": "6-6",
+                "rerank_score": -4.942740440368652
+            }
+        ],
+        "answer": "資料不足",
+        "raw_answer": "資料不足",
+        "citations": [],
+        "labels": [],
+        "sources": [],
+        "invalid_refs": [],
+        "llm_ms": 1082,
+        "input_tokens": 1447,
+        "output_tokens": 2
+    },
+    {
+        "id": "Q40",
+        "type": "temporal",
+        "answerable": "yes",
+        "question": "全國性公投現在還是每兩年固定在八月第四個星期六嗎？",
+        "expected": [
+            {
+                "document": "06_公民投票法.pdf",
+                "section": "第 23 條"
+            }
+        ],
+        "expected_answer": "依語料版本，公告成立後三個月起至六個月內舉行；期間有全國性選舉應同日舉行。",
+        "status": "insufficient_no_candidates",
+        "llm_called": false,
+        "provider": "gemini",
+        "model": null,
+        "dense_top_score": 0.4726785,
+        "threshold": 0.55,
+        "retrieved": [],
+        "answer": "資料不足",
+        "raw_answer": null,
+        "citations": [],
+        "labels": [],
+        "sources": [],
+        "invalid_refs": [],
+        "llm_ms": null,
+        "input_tokens": null,
+        "output_tokens": null
+    },
+    {
+        "id": "Q41",
+        "type": "temporal",
+        "answerable": "yes",
+        "question": "縣市長參選人因第 26 條前六款以外之罪判有期徒刑確定並獲緩刑，就第 9 款而言會被排除嗎？那前六款列舉之罪呢？",
+        "expected": [
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 26 條"
+            }
+        ],
+        "expected_answer": "第 9 款有緩刑但書；前六款列舉之罪有罪確定且受緩刑仍受第 7 款限制。",
+        "status": "insufficient_by_llm",
+        "llm_called": true,
+        "provider": "gemini",
+        "model": "gemini-3.5-flash-lite",
+        "dense_top_score": 0.64688736,
+        "threshold": 0.55,
+        "retrieved": [
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 26 條",
+                "pages": "5-6",
+                "rerank_score": -0.3314671516418457
+            },
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 26 條",
+                "pages": "6-6",
+                "rerank_score": -0.36955931782722473
+            },
+            {
+                "document": "05_公職人員選舉罷免法施行細則.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 26 條",
+                "pages": "6-6",
+                "rerank_score": -5.708533763885498
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 29 條",
+                "pages": "7-7",
+                "rerank_score": -6.627230167388916
+            },
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 28 條",
+                "pages": "7-7",
+                "rerank_score": -6.9305620193481445
+            }
+        ],
+        "answer": "資料不足",
+        "raw_answer": "資料不足",
+        "citations": [],
+        "labels": [],
+        "sources": [],
+        "invalid_refs": [],
+        "llm_ms": 4120,
+        "input_tokens": 1457,
+        "output_tokens": 2
+    },
+    {
+        "id": "Q46",
+        "type": "multi_hop",
+        "answerable": "yes",
+        "question": "總統和縣市長最高票與次高票差在千分之三以內時，申請期限和重計完成期限各多久？",
+        "expected": [
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 63-1 條"
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 69 條"
+            }
+        ],
+        "expected_answer": "兩者均由次高票候選人在投票後七日內聲請；總統重計四十日內，縣市長二十日內。",
+        "status": "answered",
+        "llm_called": true,
+        "provider": "gemini",
+        "model": "gemini-3.5-flash-lite",
+        "dense_top_score": 0.6984646,
+        "threshold": 0.55,
+        "retrieved": [
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 69 條",
+                "pages": "21-21",
+                "rerank_score": 3.7543797492980957
+            },
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 63-1 條",
+                "pages": "17-17",
+                "rerank_score": 3.557948350906372
+            },
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 35 條",
+                "pages": "8-9",
+                "rerank_score": -3.800400733947754
+            },
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 63 條",
+                "pages": "17-17",
+                "rerank_score": -3.861325740814209
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 70 條",
+                "pages": "21-22",
+                "rerank_score": -4.015108108520508
+            }
+        ],
+        "answer": "關於縣市長選舉：\n* 申請期限：次高票之候選人得於投票日後七日內聲請 [1]。\n* 重新計票完成期限：應於二十日內完成重新計票 [1]。\n\n關於總統選舉：\n資料不足",
+        "raw_answer": "關於縣市長選舉：\n* 申請期限：次高票之候選人得於投票日後七日內聲請 [1]。\n* 重新計票完成期限：應於二十日內完成重新計票 [1]。\n\n關於總統選舉：\n資料不足",
+        "citations": [
+            {
+                "ref": 1,
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 69 條",
+                "pages": "21-21"
+            }
+        ],
+        "labels": {
+            "1": "04_公職人員選舉罷免法.pdf　第 三 章 選舉及罷免 \/ 第 69 條　第 21 頁"
+        },
+        "sources": [
+            "[1] 04_公職人員選舉罷免法.pdf　第 三 章 選舉及罷免 \/ 第 69 條　第 21 頁"
+        ],
+        "invalid_refs": [],
+        "llm_ms": 5410,
+        "input_tokens": 1591,
+        "output_tokens": 58
+    },
+    {
+        "id": "Q50",
+        "type": "no_answer",
+        "answerable": "partial",
+        "question": "縣市長選舉是不是一定早上八點開始、下午四點截止？法規怎麼規定？",
+        "expected": [
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 38 條"
+            }
+        ],
+        "expected_answer": "公告應載明投票起止時間；本條未寫固定鐘點。",
+        "status": "insufficient_by_llm",
+        "llm_called": true,
+        "provider": "gemini",
+        "model": "gemini-3.5-flash-lite",
+        "dense_top_score": 0.66535413,
+        "threshold": 0.55,
+        "retrieved": [
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 40 條",
+                "pages": "11-11",
+                "rerank_score": 1.4773181676864624
+            },
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 36 條",
+                "pages": "9-9",
+                "rerank_score": -1.2398672103881836
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 66 條",
+                "pages": "19-20",
+                "rerank_score": -3.7568068504333496
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 38 條",
+                "pages": "10-10",
+                "rerank_score": -3.787168502807617
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 一 章 總則 \/ 第 5 條",
+                "pages": "1-1",
+                "rerank_score": -3.920461654663086
+            }
+        ],
+        "answer": "資料不足",
+        "raw_answer": "資料不足",
+        "citations": [],
+        "labels": [],
+        "sources": [],
+        "invalid_refs": [],
+        "llm_ms": 1196,
+        "input_tokens": 1312,
+        "output_tokens": 2
+    },
+    {
+        "id": "Q52",
+        "type": "no_answer",
+        "answerable": "no",
+        "question": "自然人捐錢給縣市長候選人，每年能捐多少政治獻金？",
+        "expected": [],
+        "expected_answer": "這七份語料未提供該捐款上限。勿以公投經費募集規則代答。",
+        "status": "insufficient_by_llm",
+        "llm_called": true,
+        "provider": "gemini",
+        "model": "gemini-3.5-flash-lite",
+        "dense_top_score": 0.63681763,
+        "threshold": 0.55,
+        "retrieved": [
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 40 條",
+                "pages": "9-9",
+                "rerank_score": -6.157947063446045
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 42 條",
+                "pages": "11-11",
+                "rerank_score": -6.511159896850586
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 24 條",
+                "pages": "5-5",
+                "rerank_score": -6.512158393859863
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 41 條",
+                "pages": "11-11",
+                "rerank_score": -6.616778373718262
+            },
+            {
+                "document": "06_公民投票法.pdf",
+                "section": "第 五 章 罰則 \/ 第 37 條",
+                "pages": "8-8",
+                "rerank_score": -6.972273349761963
+            }
+        ],
+        "answer": "資料不足",
+        "raw_answer": "資料不足",
+        "citations": [],
+        "labels": [],
+        "sources": [],
+        "invalid_refs": [],
+        "llm_ms": 5314,
+        "input_tokens": 1623,
+        "output_tokens": 2
+    },
+    {
+        "id": "Q53",
+        "type": "no_answer",
+        "answerable": "no",
+        "question": "縣市長一任幾年？",
+        "expected": [],
+        "expected_answer": "這七份語料未提供縣市長任期長度。",
+        "status": "insufficient_by_llm",
+        "llm_called": true,
+        "provider": "gemini",
+        "model": "gemini-3.5-flash-lite",
+        "dense_top_score": 0.5888903,
+        "threshold": 0.55,
+        "retrieved": [
+            {
+                "document": "01_中華民國憲法增修條文.pdf",
+                "section": "第 4 條",
+                "pages": "2-2",
+                "rerank_score": -2.917154550552368
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 24 條",
+                "pages": "5-5",
+                "rerank_score": -3.8755249977111816
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 40 條",
+                "pages": "11-11",
+                "rerank_score": -4.096748352050781
+            },
+            {
+                "document": "01_中華民國憲法增修條文.pdf",
+                "section": "第 2 條",
+                "pages": "1-1",
+                "rerank_score": -5.138283729553223
+            }
+        ],
+        "answer": "資料不足",
+        "raw_answer": "資料不足",
+        "citations": [],
+        "labels": [],
+        "sources": [],
+        "invalid_refs": [],
+        "llm_ms": 2941,
+        "input_tokens": 1749,
+        "output_tokens": 2
+    },
+    {
+        "id": "Q28",
+        "type": "exact_ref",
+        "answerable": "yes",
+        "question": "公職選罷法第26條第三款提到的「第九十七條第一項、第二項」在講什麼？請列出交叉引用來源及目標條文。",
+        "expected": [
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 26 條"
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 97 條"
+            }
+        ],
+        "expected_answer": "第 26 條第 3 款引用本法第 97 條前兩項；涵蓋對候選人或具資格者行賄，以及其收受或要求不正利益以放棄競選或進行特定競選活動。",
+        "status": "insufficient_by_llm",
+        "llm_called": true,
+        "provider": "gemini",
+        "model": "gemini-3.5-flash-lite",
+        "dense_top_score": 0.595523,
+        "threshold": 0.55,
+        "retrieved": [
+            {
+                "document": "02_總統副總統選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 26 條",
+                "pages": "6-6",
+                "rerank_score": 1.8067817687988281
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 26 條",
+                "pages": "5-6",
+                "rerank_score": 1.520573377609253
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 五 章 妨害選舉罷免之處罰 \/ 第 101 條",
+                "pages": "30-30",
+                "rerank_score": 1.2199560403823853
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 五 章 妨害選舉罷免之處罰 \/ 第 112 條",
+                "pages": "33-33",
+                "rerank_score": 0.7086234092712402
+            },
+            {
+                "document": "04_公職人員選舉罷免法.pdf",
+                "section": "第 三 章 選舉及罷免 \/ 第 74 條",
+                "pages": "23-24",
+                "rerank_score": 0.2925482392311096
+            }
+        ],
+        "answer": "資料不足",
+        "raw_answer": "資料不足",
+        "citations": [],
+        "labels": [],
+        "sources": [],
+        "invalid_refs": [],
+        "llm_ms": 6146,
+        "input_tokens": 2112,
+        "output_tokens": 2
+    }
+]
