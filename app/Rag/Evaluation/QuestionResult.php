@@ -13,6 +13,7 @@ use App\Rag\Retrieval\RetrievedChunk;
  * hasCandidates：套用門檻後是否有候選；inContext：套用門檻後的 Top-K 是否含預期來源（下一章 LLM 實際看得到）。
  * 沒有設定門檻時兩者皆為 null。
  * expectedRanks：每個期望來源各自的命中名次（All@k 用）；latencyMs：不套門檻那次檢索的耗時；raw：該次檢索的完整結果（輸出原始 JSON 用）。
+ * context：套用門檻、預設 Top-K 的那次檢索（線上實際送進 LLM 的段落），沒有設定門檻時為 null。
  */
 final readonly class QuestionResult
 {
@@ -30,6 +31,7 @@ final readonly class QuestionResult
         public array $expectedRanks = [],
         public ?int $latencyMs = null,
         public ?RetrievalResult $raw = null,
+        public ?RetrievalResult $context = null,
     ) {}
 
     /** 所有期望來源都在前 k 名（多條組合題用）；沒有期望來源時為 false */

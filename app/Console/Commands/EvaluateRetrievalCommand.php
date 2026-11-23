@@ -104,6 +104,8 @@ class EvaluateRetrievalCommand extends Command
             'mode' => $report->mode->value,
             'set' => $this->option('set'),
             'rerank' => $this->onOff('rerank') ?? config('rag.rerank.enabled'),
+            'threshold' => $report->scoreThreshold,
+            'context_top_k' => $report->contextTopK,
             'questions' => array_map(fn (QuestionResult $r) => [
                 'id' => $r->question->id,
                 'type' => $r->question->type->value,
@@ -131,6 +133,15 @@ class EvaluateRetrievalCommand extends Command
                     'rerank_rank' => $c->rerankRank,
                     'rerank_score' => $c->rerankScore,
                 ], $r->raw?->chunks ?? []),
+                // 線上實際送進 LLM 的段落（套門檻、預設 Top-K、keep_exact 照設定）；評估「答案段落送達率」用
+                'context' => $r->context === null ? null : array_map(fn ($c) => [
+                    'chunk_id' => $c->chunkId,
+                    'document' => $c->documentName,
+                    'section' => $c->section,
+                    'exact_match' => $c->exactMatch,
+                    'rerank_score' => $c->rerankScore,
+                    'content' => $c->content,
+                ], $r->context->chunks),
             ], $report->results),
         ];
     }

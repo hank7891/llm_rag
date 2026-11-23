@@ -315,4 +315,38 @@ class RetrievalEvaluatorTest extends TestCase
         $this->assertSame(['yes', 1, [1], 0.7, 2, 'A.pdf'], [$q['answerable'], $q['rank'], $q['expected_ranks'], $q['dense_top_score'], $q['exact_hit_count'], $q['top'][0]['document']]);
         File::deleteDirectory($dir);
     }
+
+    public function test_raw_json_keeps_context_chunks_from_the_online_retrieval(): void
+    {
+        // Top-20 不套門檻那次有 3 段；線上那次（套門檻、預設 Top-K）只剩分數過門檻的 2 段，送達率要看這一次
+        $this->fakeRetriever(['問題 q1' => [
+            new RetrievedChunk(11, 1, 'A.pdf', '第一條', 1, 1, '前段', 0.8),
+            new RetrievedChunk(12, 1, 'A.pdf', '第一條', 1, 1, '後段', 0.5),
+            new RetrievedChunk(13, 1, 'B.pdf', '第二條', 1, 1, '其他', 0.7),
+        ]]);
+        $set = tempnam(sys_get_temp_dir(), 'rag-set');
+        file_put_contents($set, json_encode(['id' => 'q1', 'type' => 'single', 'question' => '問題 q1', 'expected' => [['document' => 'A.pdf', 'section' => '第一條']], 'answerable' => 'yes']));
+        $dir = sys_get_temp_dir().'/rag-eval-'.uniqid();
+
+        $this->artisan('rag:eval', ['--set' => $set, '--output-dir' => $dir, '--json' => "{$dir}/raw.json"])->assertSuccessful();
+
+        $raw = json_decode(File::get("{$dir}/raw.json"), true);
+        $this->assertSame([0.6, 5], [$raw['threshold'], $raw['context_top_k']]);
+        $this->assertSame([11, 12, 13], array_column($raw['questions'][0]['top'], 'chunk_id'));
+        $this->assertSame([[11, 13], ['前段', '其他']], [array_column($raw['questions'][0]['context'], 'chunk_id'), array_column($raw['questions'][0]['context'], 'content')]);
+        File::deleteDirectory($dir);
+    }
+
+    public function test_raw_json_context_is_null_without_threshold(): void
+    {
+        $this->fakeRetriever(['問題 q1' => [self::chunk('A.pdf', '第一條', 0.7)]], threshold: null);
+        $set = tempnam(sys_get_temp_dir(), 'rag-set');
+        file_put_contents($set, json_encode(['id' => 'q1', 'type' => 'single', 'question' => '問題 q1', 'expected' => [['document' => 'A.pdf', 'section' => '第一條']], 'answerable' => 'yes']));
+        $dir = sys_get_temp_dir().'/rag-eval-'.uniqid();
+
+        $this->artisan('rag:eval', ['--set' => $set, '--output-dir' => $dir, '--json' => "{$dir}/raw.json"])->assertSuccessful();
+
+        $this->assertNull(json_decode(File::get("{$dir}/raw.json"), true)['questions'][0]['context']);
+        File::deleteDirectory($dir);
+    }
 }

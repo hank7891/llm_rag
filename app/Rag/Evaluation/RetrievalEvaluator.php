@@ -98,6 +98,7 @@ class RetrievalEvaluator
                 }, $question->expected),
                 $latencyMs,
                 $raw,
+                $context,
             );
         }
 
