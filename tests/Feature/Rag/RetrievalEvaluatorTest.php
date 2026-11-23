@@ -284,6 +284,20 @@ class RetrievalEvaluatorTest extends TestCase
         );
     }
 
+    public function test_v21_election_test_set_differs_from_v2_only_by_q58(): void
+    {
+        $v2 = $this->evaluator()->load(base_path('tests/rag-set/v2-election/questions.jsonl'));
+        $v21 = $this->evaluator()->load(base_path('tests/rag-set/v2.1-election/questions.jsonl'));
+        $answerability = array_count_values(array_map(fn (TestQuestion $q) => $q->answerability()->value, $v21));
+        $changed = array_keys(array_filter(array_map(fn (TestQuestion $a, TestQuestion $b) => $a != $b, $v2, $v21)));
+
+        // 凍結的 v2.1：只有 Q58 由 no 改為 partial（期望 公職法 §59-1、總統法 §55-1）
+        $this->assertSame(
+            [131, ['yes' => 109, 'partial' => 8, 'no' => 14], ['Q58'], []],
+            [count($v21), $answerability, array_map(fn (int $i) => $v21[$i]->id, $changed), array_values(array_filter($v21, fn (TestQuestion $q) => $q->isNoAnswer() !== ($q->expected === [])))],
+        );
+    }
+
     // ---- 指令 ----
 
     public function test_eval_command_writes_markdown_report(): void
